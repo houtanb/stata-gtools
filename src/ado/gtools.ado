@@ -1,14 +1,9 @@
-*! version 0.7.2 28Sep2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.7.3 29Sep2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Program for managing the gtools package installation
 
 capture program drop gtools
 program gtools
     version 13
-    if inlist("`c(os)'", "MacOSX") {
-        di as err "Not available for `c(os)'."
-        exit 198
-    }
-
     syntax, [Dependencies Install_latest Upgrade replace dll hashlib(str)]
     local cwd `c(pwd)'
     local github https://raw.githubusercontent.com/mcaceresb/stata-gtools/master

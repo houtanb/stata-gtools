@@ -1,4 +1,4 @@
-*! version 0.7.2 28Sep2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.7.3 29Sep2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! implementation of by-able -egen- functions using C for faster processing
 
 /*
@@ -12,10 +12,6 @@
 capture program drop gegen
 program define gegen, byable(onecall)
     version 13
-    if inlist("`c(os)'", "MacOSX") {
-        di as err "Not available for `c(os)'."
-        exit 198
-    }
     local 00 `0'
 
     * Time the entire function execution

@@ -1,13 +1,9 @@
-*! version 0.1.1 28Sep2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.1.2 29Sep2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! -levelsof- implementation using C for faster processing
 
 capture program drop glevelsof
 program glevelsof, rclass
     version 13
-    if inlist("`c(os)'", "MacOSX") {
-        di as err "Not available for `c(os)'."
-        exit 198
-    }
 
 	if (_N == 0) {
         error 2000

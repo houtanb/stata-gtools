@@ -5,7 +5,7 @@
 * Created: Tue May 16 07:23:02 EDT 2017
 * Updated: Thu Sep 28 18:40:14 EDT 2017
 * Purpose: Unit tests for gtools
-* Version: 0.6.19
+* Version: 0.6.20
 * Manual:  help gcollapse, help gegen
 
 * Stata start-up options
@@ -58,7 +58,7 @@ program main
             unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_single debug_io_read_method(0))
             unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_single debug_io_read_method(1))
 
-            if !inlist("`c(os)'", "Windows") {
+            if inlist("`c(os)'", "Unix") {
                 unit_test, `noisily' test(checks_corners, oncollision(error) debug_force_multi)
 
                 unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_multi)
@@ -83,7 +83,7 @@ program main
             consistency_gegen,           `noisily' oncollision(error) debug_force_single
             consistency_gegen_gcollapse, `noisily' oncollision(error) debug_force_single
 
-            if !inlist("`c(os)'", "Windows") {
+            if inlist("`c(os)'", "Unix") {
                 consistency_gcollapse,       `noisily' oncollision(error) debug_force_multi
                 consistency_gcollapse,       `noisily' oncollision(error) debug_force_multi forceio debug_io_read_method(0)
                 consistency_gcollapse,       `noisily' oncollision(error) debug_force_multi forceio debug_io_read_method(1)
