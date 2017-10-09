@@ -1,9 +1,16 @@
-*! version 0.1.2 29Sep2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.1.4 08Oct2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! -levelsof- implementation using C for faster processing
 
 capture program drop glevelsof
 program glevelsof, rclass
     version 13
+    * if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+    * else local c_os_: di lower("`c(os)'")
+    *
+    * if inlist("`c_os_'", "macosx") {
+    *     di as err "Not available for MacOSX."
+    *     exit 198
+    * }
 
 	if (_N == 0) {
         error 2000
@@ -23,10 +30,12 @@ program glevelsof, rclass
         MISSing                /// Include missing values
         Local(str)             /// Store results in local
         Clean                  /// Clean strings
+        COUNTonly              /// Only count the number of groups
         silent                 /// Do not print levels
         Verbose                /// debugging
         Benchmark              /// print benchmark info
         hashlib(str)           /// path to hash library (Windows only)
+        legacy                 /// force legacy version
         oncollision(str)       /// (experimental) On collision, fall back to levelsof or throw error
     ]
 
@@ -38,7 +47,7 @@ program glevelsof, rclass
         local hashusr 0
     }
     else local hashusr 1
-    if ( ("`c(os)'" == "Windows") & `hashusr' ) {
+    if ( ("`c_os_'" == "windows") & `hashusr' ) {
         cap confirm file spookyhash.dll
         if ( _rc | `hashusr' ) {
             cap findfile spookyhash.dll
@@ -101,15 +110,6 @@ program glevelsof, rclass
     scalar __gtools_sep_len    = length(`"`sep'"')
     scalar __gtools_colsep_len = length(`"`colsep'"')
 
-	if ( "`missing'" != "" ) local novarlist "novarlist"
-    marksample touse, strok `novarlist'
-    qui count if `touse'
-    if ( `r(N)' == 0 ) {
-        di as txt "(no observations)"
-        exit 0
-    }
-    local if if `touse'
-
     local verbose   = ( "`verbose'"   != "" )
     local benchmark = ( "`benchmark'" != "" )
 
@@ -145,9 +145,9 @@ program glevelsof, rclass
     cap noi check_matsize `bynum'
     if ( _rc ) exit _rc
 
-    scalar __gtools_if    = ( "`if'"    != "" )
-    scalar __gtools_clean = ( "`clean'" != "" )
-    cap noi parse_by_types `varlist' `in'
+    scalar __gtools_clean   = ( "`clean'" != "" )
+    scalar __gtools_missing = 1
+    cap noi parse_by_types `varlist' `in', `legacy'
     if ( _rc ) exit _rc
 
     * Position of string variables (the position in the variable list passed
@@ -162,6 +162,40 @@ program glevelsof, rclass
     foreach var of local bynum {
         matrix __gtools_numpos = nullmat(__gtools_numpos), `:list posof `"`var'"' in varlist'
     }
+
+    * Parse the if condition; if missing option is not specified, also make
+    * sure to exclude msising observations. Since carrying the if condition is
+    * really inefficient, we check if there is a need (only inefficient to do
+    * this check with integers).
+    scalar __gtools_if = ( "`if'" != "" )
+	if ( "`missing'" != "" ) {
+        local novarlist "novarlist"
+        if ( "`if'" != "" ) {
+            marksample touse, strok `novarlist'
+            local if if `touse'
+            scalar __gtools_if = 1
+        }
+        scalar __gtools_missing = 1
+    }
+    else if ( `=scalar(__gtools_missing)' ) {
+        marksample touse, strok `novarlist'
+        local if if `touse'
+        scalar __gtools_if = (`:list sizeof varlist' > 1)
+        scalar __gtools_missing = 0
+    }
+    else {
+        scalar __gtools_missing = 0
+    }
+
+	* if ( "`missing'" != "" ) local novarlist "novarlist"
+    * marksample touse, strok `novarlist'
+    * * qui count if `touse'
+    * * if ( `r(N)' == 0 ) {
+    * *     di as txt "(no observations)"
+    * *     exit 0
+    * * }
+    * local if if `touse'
+    * scalar __gtools_if = ( "`if'" != "" )
 
     * If benchmark, output program setup time
     {
@@ -179,7 +213,7 @@ program glevelsof, rclass
     local website_url  https://github.com/mcaceresb/stata-gtools/issues
     local website_disp github.com/mcaceresb/stata-gtools
 
-    cap noi plugin call gtools_plugin `varlist' `if' `in', levelsof
+    cap noi plugin call gtools`legacy'_plugin `varlist' `if' `in', levelsof
     if ( _rc == 42000 ) {
         di as err "There may be 128-bit hash collisions!"
         di as err `"This is a bug. Please report to {browse "`website_url'":`website_disp'}"'
@@ -213,9 +247,21 @@ program glevelsof, rclass
         timer clear 99
     }
 
+    * Return values
+    * -------------
+
+    return scalar N    = `r_N'
+    return scalar J    = `r_J'
+    return scalar minJ = `r_minJ'
+    return scalar maxJ = `r_maxJ'
+
     ***********************************************************************
     *                       Clean up after yourself                       *
     ***********************************************************************
+
+    cap scalar drop __gtools_missing
+    cap matrix drop __gtools_strpos
+    cap matrix drop __gtools_numpos
 
     cap scalar drop __gtools_benchmark
     cap scalar drop __gtools_verbose
@@ -236,7 +282,7 @@ end
 
 capture program drop parse_by_types
 program parse_by_types
-    syntax varlist [in]
+    syntax varlist [in], [legacy]
     cap matrix drop __gtools_byk
     cap matrix drop __gtools_byint
     cap matrix drop __gtools_bymin
@@ -268,7 +314,7 @@ program parse_by_types
             }
             else if inlist("`:type `byvar''", "float", "double") {
                 if ( `=_N > 0' ) {
-                    cap plugin call gtools_plugin `byvar' `in', isint
+                    cap plugin call gtools`legacy'_plugin `byvar' `in', isint
                     if ( _rc ) exit _rc
                 }
                 else scalar __gtools_is_int = 0
@@ -307,9 +353,10 @@ program parse_by_types
         matrix c_gtools_bymiss = J(1, `knum', 0)
         matrix c_gtools_bymin  = J(1, `knum', 0)
         matrix c_gtools_bymax  = J(1, `knum', 0)
-        if ( `=_N > 0' ) {
-            cap plugin call gtools_plugin `varnum' `in', setup
+        if ( (`=_N > 0') ) {
+            cap plugin call gtools`legacy'_plugin `varnum' `in', setup
             if ( _rc ) exit _rc
+            mata: st_numscalar("__gtools_missing", rowsum(st_matrix("c_gtools_bymiss") :!= 0))
         }
         matrix __gtools_bymin = c_gtools_bymin
         matrix __gtools_bymax = c_gtools_bymax + c_gtools_bymiss
@@ -394,11 +441,14 @@ end
 *                               Plugins                               *
 ***********************************************************************
 
+if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+else local c_os_: di lower("`c(os)'")
+
 cap program drop env_set
-program env_set, plugin using("env_set_`:di lower("`c(os)'")'.plugin")
+program env_set, plugin using("env_set_`c_os_'.plugin")
 
 * Windows hack
-if ( "`c(os)'" == "Windows" ) {
+if ( "`c_os_'" == "windows" ) {
     cap confirm file spookyhash.dll
     if ( _rc ) {
         cap findfile spookyhash.dll
@@ -449,5 +499,13 @@ if ( "`c(os)'" == "Windows" ) {
     }
 }
 
+if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+else local c_os_: di lower("`c(os)'")
+
 cap program drop gtools_plugin
-program gtools_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'.plugin"')
+program gtools_plugin, plugin using(`"gtools_`c_os_'.plugin"')
+
+if ( "`c_os_'" == "unix" ) {
+    cap program drop __gtools_plugin
+    cap program gtoolslegacy_plugin, plugin using(`"gtools_`c_os_'_legacy.plugin"')
+}

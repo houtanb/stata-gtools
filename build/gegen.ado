@@ -1,4 +1,4 @@
-*! version 0.7.3 29Sep2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.7.5 08Oct2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! implementation of by-able -egen- functions using C for faster processing
 
 /*
@@ -10,8 +10,16 @@
 
 * Adapted from egen.ado
 capture program drop gegen
-program define gegen, byable(onecall)
+program define gegen, byable(onecall) rclass
     version 13
+    * if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+    * else local c_os_: di lower("`c(os)'")
+    *
+    * if inlist("`c_os_'", "macosx") {
+    *     di as err "Not available for MacOSX."
+    *     exit 198
+    * }
+
     local 00 `0'
 
     * Time the entire function execution
@@ -94,11 +102,14 @@ program define gegen, byable(onecall)
         p(real 50)               /// percentiles (only used with pctile)
                                  ///
         missing                  /// for group(); treats
+        counts(str)              /// for group(); create new variable `counts' with group counts
+        fill(str)                /// for group(); fills rest of group with `fill'
                                  ///
         Verbose                  /// debugging
         Benchmark                /// print benchmark info
         smart                    /// check if data is sorted to speed up hashing
         hashlib(str)             /// path to hash library (Windows only)
+        legacy                   /// force legacy version
                                  ///
         debug_force_single       /// (experimental) Force non-multi-threaded version
         debug_force_multi        /// (experimental) Force muti-threading
@@ -159,7 +170,7 @@ program define gegen, byable(onecall)
         local hashusr 0
     }
     else local hashusr 1
-    if ( ("`c(os)'" == "Windows") & `hashusr' ) {
+    if ( ("`c_os_'" == "windows") & `hashusr' ) {
         cap confirm file spookyhash.dll
         if ( _rc | `hashusr' ) {
             cap findfile spookyhash.dll
@@ -212,19 +223,19 @@ program define gegen, byable(onecall)
     * Check plugin loads
     * ------------------
 
-    cap plugin call gtoolsmulti_plugin, check
+    cap plugin call gtools`legacy'multi_plugin, check
     if ( _rc ) {
         if ( `verbose'  ) di as txt "(note: failed to load multi-threaded version; using fallback)"
-        local plugin_call plugin call gtools_plugin
+        local plugin_call plugin call gtools`legacy'_plugin
         local multi ""
-        cap `noi' plugin call gtools_plugin, check
+        cap `noi' plugin call gtools_`legacy'plugin, check
         if ( _rc ) {
             di as err "Failed to load -gtools.plugin-"
             exit 198
         }
     }
     else {
-        local plugin_call plugin call gtoolsmulti_plugin
+        local plugin_call plugin call gtools`legacy'multi_plugin
         local multi multi
     }
 
@@ -234,13 +245,13 @@ program define gegen, byable(onecall)
     if ( "`debug_force_multi'" != "" ) {
         di as txt "(warning: forcing multi-threaded version)"
         local multi multi
-        local plugin_call plugin call gtoolsmulti_plugin
+        local plugin_call plugin call gtools`legacy'multi_plugin
     }
 
     if ( "`debug_force_single'" != "" ) {
         di as txt "(warning: forcing non-multi-threaded version)"
         local multi ""
-        local plugin_call plugin call gtools_plugin
+        local plugin_call plugin call gtools`legacy'_plugin
     }
 
     * Check hash collisions in C
@@ -381,6 +392,57 @@ program define gegen, byable(onecall)
     }
     else local indexed 0
 
+    * Special egen, group() options
+    * -----------------------------
+
+    scalar __gtools_group_data  = 0
+    scalar __gtools_group_fill  = 0
+    scalar __gtools_group_val   = .
+    scalar __gtools_group_count = 0
+    if ( "`counts'" != "" ) {
+        if ( "`fcn'" != "group" ) {
+            di as err "-counts- only allowed with -gegen group-"
+            exit 198
+        }
+        {
+            gettoken counts_type counts_name: counts
+            if ( "`counts_name'" == "" ) {
+                local counts_name `counts_type'
+                if (`=_N' < 2^31) {
+                    local counts_type long
+                }
+                else {
+                    local counts_type `c(type)'
+                }
+            }
+            local 0 `counts_name'
+            syntax newvarname
+            scalar __gtools_group_count = 1
+        }
+        if ( "`fill'" != "" ) {
+            if ( "`fill'" == "group" ) {
+                scalar __gtools_group_fill = 0
+                scalar __gtools_group_val  = .
+            }
+            else if ( "`fill'" == "data" ) {
+                scalar __gtools_group_data = 1
+                scalar __gtools_group_fill = 0
+                scalar __gtools_group_val  = .
+            }
+            else {
+                local 0 , fill(`fill')
+                syntax , [fill(real 0)]
+                local fill_value = `fill'
+                scalar __gtools_group_fill = 1
+                scalar __gtools_group_val  = `fill'
+            }
+        }
+    }
+    else if ( "`fill'" != "" ) {
+        di as err "-fill- only allowed with -gegen group, count()-"
+        exit 198
+    }
+
     * Info for C
     * ----------
 
@@ -407,12 +469,17 @@ program define gegen, byable(onecall)
     if ( _rc ) exit _rc
 
     * Parse type of each by variable
-    cap parse_by_types `by' `in', `multi'
+    cap parse_by_types `by' `in', `multi' `legacy'
     if ( _rc ) exit _rc
     scalar __gtools_merge = 1
 
     * Add dummy variable; will rename to target variable
-    qui mata: st_addvar("`type'", "`dummy'")
+    if ( "`counts'" != "" )  {
+        qui mata: st_addvar(("`type'", "`counts_type'"), ("`dummy'", "`counts_name'"))
+    }
+    else {
+        qui mata: st_addvar("`type'", "`dummy'")
+    }
 
     * Position of string variables
     cap matrix drop __gtools_strpos
@@ -445,7 +512,7 @@ program define gegen, byable(onecall)
         timer on 99
     }
 
-    local plugvars `by' `gtools_vars' `gtools_targets' `bysmart'
+    local plugvars `by' `gtools_vars' `gtools_targets' `counts_name' `bysmart'
     scalar __gtools_indexed = cond(`indexed', `:list sizeof plugvars', 0)
     if ( `=_N > 0' ) {
         cap noi `plugin_call' `plugvars' `sub', egen `fcn'
@@ -456,7 +523,7 @@ program define gegen, byable(onecall)
                 cap noi collision_handler `00'
                 exit _rc
             }
-            else exit 42000 
+            else exit 42000
         }
         else if ( _rc == 42001 ) {
             di as txt "(no observations)"
@@ -507,6 +574,14 @@ program define gegen, byable(onecall)
         timer clear 98
     }
 
+    * Return values
+    * -------------
+
+    return scalar N    = `r_N'
+    return scalar J    = `r_J'
+    return scalar minJ = `r_minJ'
+    return scalar maxJ = `r_maxJ'
+
     * Clean up after yourself
     * -----------------------
 
@@ -517,6 +592,10 @@ program define gegen, byable(onecall)
     cap scalar drop __gtools_benchmark
     cap scalar drop __gtools_verbose
     cap scalar drop __gtools_checkhash
+    cap scalar drop __gtools_group_data
+    cap scalar drop __gtools_group_fill
+    cap scalar drop __gtools_group_val
+    cap scalar drop __gtools_group_count
 
     cap matrix drop __gtools_strpos
     cap matrix drop __gtools_numpos
@@ -535,7 +614,7 @@ end
 
 capture program drop parse_by_types
 program parse_by_types
-    syntax varlist [in], [multi]
+    syntax varlist [in], [multi legacy]
     cap matrix drop __gtools_byk
     cap matrix drop __gtools_bymin
     cap matrix drop __gtools_bymax
@@ -561,7 +640,7 @@ program parse_by_types
         matrix c_gtools_bymin  = J(1, `knum', 0)
         matrix c_gtools_bymax  = J(1, `knum', 0)
         if ( `=_N > 0' ) {
-            cap plugin call gtools`multi'_plugin `varnum' `in', setup
+            cap plugin call gtools`legacy'`multi'_plugin `varnum' `in', setup
             if ( _rc ) exit _rc
         }
         matrix __gtools_bymin = c_gtools_bymin
@@ -604,14 +683,57 @@ program parse_by_types
     }
 end
 
-* Load plugins
-* ------------
+***********************************************************************
+*                        Fallback to collapse                         *
+***********************************************************************
+
+capture program drop collision_handler
+program collision_handler
+    syntax [anything(equalok)]   ///
+        [if] [in] ,              ///
+    [                            ///
+        Verbose                  ///
+        Benchmark                ///
+        smart                    ///
+        hashlib(str)             ///
+                                 ///
+        debug_force_single       ///
+        debug_force_multi        ///
+        debug_checkhash          ///
+        oncollision(str)         ///
+        *                        ///
+    ]
+    di as txt "Falling back on -egen-"
+    egen `anything' `if' `in', `options'
+end
+
+capture program drop check_matsize
+program check_matsize
+    syntax [anything], [nvars(int 0)]
+    if ( `nvars' == 0 ) local nvars `:list sizeof anything'
+    if ( `nvars' > `c(matsize)' ) {
+        cap set matsize `=`nvars''
+        if ( _rc ) {
+            di as err _n(1) "{bf:# variables > matsize (`nvars' > `c(matsize)'). Tried to run}"
+            di        _n(1) "    {stata set matsize `=`nvars''}"
+            di        _n(1) "{bf:but the command failed. Try setting matsize manually.}"
+            exit 908
+        }
+    }
+end
+
+***********************************************************************
+*                            Load plugins                             *
+***********************************************************************
+
+if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+else local c_os_: di lower("`c(os)'")
 
 cap program drop env_set
-program env_set, plugin using("env_set_`:di lower("`c(os)'")'.plugin")
+program env_set, plugin using("env_set_`c_os_'.plugin")
 
 * Windows hack
-if ( "`c(os)'" == "Windows" ) {
+if ( "`c_os_'" == "windows" ) {
     cap confirm file spookyhash.dll
     if ( _rc ) {
         cap findfile spookyhash.dll
@@ -662,74 +784,38 @@ if ( "`c(os)'" == "Windows" ) {
     }
 }
 
+if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+else local c_os_: di lower("`c(os)'")
+
 * The legacy versions segfault if they are not loaded first (Unix only)
-if ( `"`:di lower("`c(os)'")'"' == "unix" ) {
+if ( "`c_os_'" == "unix" ) {
     cap program drop __gtools_plugin
-    cap program __gtools_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_legacy.plugin"')
+    cap program gtoolslegacy_plugin, plugin using(`"gtools_`c_os_'_legacy.plugin"')
 
     cap program drop __gtoolsmulti_plugin
-    cap program __gtoolsmulti_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_multi_legacy.plugin"')
+    cap program gtoolslegacymulti_plugin, plugin using(`"gtools_`c_os_'_multi_legacy.plugin"')
 
     * But we only want to use them when multi-threading fails normally
     cap program drop gtoolsmulti_plugin
-    cap program gtoolsmulti_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_multi.plugin"')
+    cap program gtoolsmulti_plugin, plugin using(`"gtools_`c_os_'_multi.plugin"')
     if ( _rc ) {
         cap program drop gtools_plugin
-        program gtools_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_legacy.plugin"')
+        program gtools_plugin, plugin using(`"gtools_`c_os_'_legacy.plugin"')
 
         cap program drop gtoolsmulti_plugin
-        cap program gtoolsmulti_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_multi_legacy.plugin"')
+        cap program gtoolsmulti_plugin, plugin using(`"gtools_`c_os_'_multi_legacy.plugin"')
     }
     else {
         cap program drop gtools_plugin
-        program gtools_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'.plugin"')
+        program gtools_plugin, plugin using(`"gtools_`c_os_'.plugin"')
     }
 }
 else {
     cap program drop gtools_plugin
-    program gtools_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'.plugin"')
+    program gtools_plugin, plugin using(`"gtools_`c_os_'.plugin"')
 
     cap program drop gtoolsmulti_plugin
-    cap program gtoolsmulti_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_multi.plugin"')
+    cap program gtoolsmulti_plugin, plugin using(`"gtools_`c_os_'_multi.plugin"')
 }
 
 * This is very inelegant, but I have debugging fatigue, and this seems to work.
-
-***********************************************************************
-*                        Fallback to collapse                         *
-***********************************************************************
-
-capture program drop collision_handler
-program collision_handler
-    syntax [anything(equalok)]   ///
-        [if] [in] ,              ///
-    [                            ///
-        Verbose                  ///
-        Benchmark                ///
-        smart                    ///
-        hashlib(str)             ///
-                                 ///
-        debug_force_single       ///
-        debug_force_multi        ///
-        debug_checkhash          ///
-        oncollision(str)         ///
-        *                        ///
-    ]
-    di as txt "Falling back on -egen-"
-    egen `anything' `if' `in', `options'
-end
-
-capture program drop check_matsize
-program check_matsize
-    syntax [anything], [nvars(int 0)]
-    if ( `nvars' == 0 ) local nvars `:list sizeof anything'
-    if ( `nvars' > `c(matsize)' ) {
-        cap set matsize `=`nvars''
-        if ( _rc ) {
-            di as err _n(1) "{bf:# variables > matsize (`nvars' > `c(matsize)'). Tried to run}"
-            di        _n(1) "    {stata set matsize `=`nvars''}"
-            di        _n(1) "{bf:but the command failed. Try setting matsize manually.}"
-            exit 908
-        }
-    }
-end

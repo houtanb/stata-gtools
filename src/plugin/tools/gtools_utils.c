@@ -59,7 +59,7 @@ uint64_t mf_max(uint64_t x[], size_t N)
 {
     uint64_t max = x[0]; size_t i;
     for (i = 1; i < N; ++i) {
-        if (max < x[i]) max = x[i];
+        if (max < x[i]) max = x[i]; 
     }
     return (max);
 }
@@ -80,6 +80,51 @@ void mf_minmax(uint64_t x[], size_t N, uint64_t * min, uint64_t * max)
         if (*min > x[i]) *min = x[i];
         if (*max < x[i]) *max = x[i];
     }
+}
+
+/*
+ * @brief Minimum for unsigned integer array
+ *
+ * @param x vector of integers to get the min
+ * @param N number of elements in @x
+ * @return Smallest integer in @x
+ */
+size_t mf_min_unsigned(size_t x[], size_t N)
+{
+    size_t min = x[0]; size_t i;
+    for (i = 1; i < N; ++i) {
+        if (min > x[i]) min = x[i];
+    }
+    return (min);
+}
+
+/**
+ * @brief Maximum for unsigned integer array
+ *
+ * @param x vector of integers to get the max
+ * @param N number of elements in @x
+ * @return Smallest integer in @x
+ */
+size_t mf_max_unsigned(size_t x[], size_t N)
+{
+    size_t max = x[0]; size_t i;
+    for (i = 1; i < N; ++i) {
+        if (max < x[i]) max = x[i];
+    }
+    return (max);
+}
+
+/**
+ * @brief Sum for an unsigned array
+ *
+ * @return Sum of unsigned array
+ */
+size_t mf_sum_unsigned(size_t x[], size_t N)
+{
+    size_t sum = x[0]; size_t i;
+    for (i = 1; i < N; i++)
+        sum += x[i];
+    return (sum);
 }
 
 /**
@@ -123,7 +168,7 @@ double mf_benchmark (char *fname)
     size_t k2   = 4;
     size_t kw   = k2 - k1;
     size_t J    = 64 * KiB;
-    srand(time(NULL));
+    srand (time(NULL));
 
     double *A = malloc(J * k2 * sizeof(double));
     double *B = malloc(J * kw * sizeof(double));
@@ -239,8 +284,10 @@ void mf_split_path_file(char** p, char** f, char *pf) {
 double mf_query_free_space (char *fname)
 {
     struct statvfs finfo;
-    char *filepath = malloc(strlen(fname) * sizeof(char));
-    char *filename = malloc(strlen(fname) * sizeof(char));
+    char *filepath = malloc((strlen(fname) + 1) * sizeof(char));
+    char *filename = malloc((strlen(fname) + 1) * sizeof(char));
+    memset (filepath, '\0', (strlen(fname) + 1));
+    memset (filename, '\0', (strlen(fname) + 1));
 
     // char rpath [PATH_MAX+1];
     // char *rc = realpath (fname, rpath);

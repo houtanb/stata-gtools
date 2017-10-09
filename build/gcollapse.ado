@@ -1,9 +1,17 @@
-*! version 0.7.3 29Sep2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.7.5 08Oct2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! -collapse- implementation using C for faster processing
 
 capture program drop gcollapse
-program gcollapse
+program gcollapse, rclass
     version 13
+    * if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+    * else local c_os_: di lower("`c(os)'")
+    *
+    * if inlist("`c_os_'", "macosx") {
+    *     di as err "Not available for MacOSX."
+    *     exit 198
+    * }
+
     syntax [anything(equalok)]        /// main call; must parse manually
         [if] [in] ,                   /// subset
     [                                 ///
@@ -22,6 +30,7 @@ program gcollapse
         hashlib(str)                  /// path to hash library (Windows only)
                                       /// greedy /// (Planned) skip the memory-saviung recasts and drops
                                       ///
+        legacy                        /// force legacy version
         oncollision(str)              /// (experimental) On collision, fall back to collapse or throw error
         debug_checkhash               /// (experimental) Check for hash collisions
         debug_force_hash              /// (experimental) Force use of SpookyHash (usually slower)
@@ -40,7 +49,7 @@ program gcollapse
         local hashusr 0
     }
     else local hashusr 1
-    if ( ("`c(os)'" == "Windows") & `hashusr' ) {
+    if ( ("`c_os_'" == "windows") & `hashusr' ) {
         cap confirm file spookyhash.dll
         if ( _rc | `hashusr' ) {
             cap findfile spookyhash.dll
@@ -121,6 +130,7 @@ program gcollapse
     * Parse options (no variable manupulation)
     parse_opts, `verbose' `benchmark'  ///
                 hashlib(`hashlib')     ///
+                `legacy'               ///
                 `debug_force_single'   ///
                 `debug_force_multi'    ///
                 `debug_checkhash'      ///
@@ -181,7 +191,7 @@ program gcollapse
     * - subset: If applicable, drop missings (cw) or keep if in.
     * - check plugin: Use multi-threaded if correctly loaded; fall back
     *                 on single-threaded otherwise.
-    parse_vars `anything' `if' `in', by(`by') `cw' smart(`smart') v(`verbose') `multi' `debug_force_hash'
+    parse_vars `anything' `if' `in', by(`by') `cw' smart(`smart') v(`verbose') `legacy' `multi' `debug_force_hash'
     local indexed `r(indexed)'
     if ( `=_N' == 0 ) {
         di as err "no observations"
@@ -646,6 +656,14 @@ program gcollapse
         if ( "` dropvars'" != "" ) mata: st_dropvar(tokens(`"`dropvars'"'))
     }
 
+    * Return values
+    * -------------
+
+    return scalar N    = `r_N'
+    return scalar J    = `r_J'
+    return scalar minJ = `r_minJ'
+    return scalar maxJ = `r_maxJ'
+
     ***********************************************************************
     *                            Program Exit                             *
     ***********************************************************************
@@ -765,6 +783,7 @@ program parse_opts, rclass
         Verbose            /// debugging
         Benchmark          /// print benchmark info
         hashlib(str)       ///
+        legacy             /// force legacy version
         debug_force_single /// (experimental) Force non-multi-threaded version
         debug_force_multi  /// (experimental) Force muti-threading
         debug_checkhash    /// (experimental) Check for hash collisions
@@ -792,19 +811,19 @@ program parse_opts, rclass
     * Choose plugin version
     * ---------------------
 
-    cap plugin call gtoolsmulti_plugin, check
+    cap plugin call gtools`legacy'multi_plugin, check
     if ( _rc ) {
         if ( `verbose'  ) di as txt "(note: failed to load multi-threaded version; using fallback)"
-        local plugin_call plugin call gtools_plugin
+        local plugin_call plugin call gtools`legacy'_plugin
         local multi ""
-        cap `noi' plugin call gtools_plugin, check
+        cap `noi' plugin call gtools`legacy'_plugin, check
         if ( _rc ) {
             di as err "Failed to load -gtools.plugin-"
             exit 198
         }
     }
     else {
-        local plugin_call plugin call gtoolsmulti_plugin
+        local plugin_call plugin call gtools`legacy'multi_plugin
         local multi multi
     }
 
@@ -814,13 +833,13 @@ program parse_opts, rclass
     if ( "`debug_force_multi'" != "" ) {
         di as txt "(warning: forcing multi-threaded version)"
         local multi multi
-        local plugin_call plugin call gtoolsmulti_plugin
+        local plugin_call plugin call gtools`legacy'multi_plugin
     }
 
     if ( "`debug_force_single'" != "" ) {
         di as txt "(warning: forcing non-multi-threaded version)"
         local multi ""
-        local plugin_call plugin call gtools_plugin
+        local plugin_call plugin call gtools`legacy'_plugin
     }
 
     * Check hash collisions in C
@@ -853,6 +872,7 @@ program parse_vars, rclass
         cw                      /// case-wise non-missing
         smart(int 0)            /// check if data is sorted to speed up hashing
                                 ///
+        legacy                  ///
         multi                   ///
         Verbose(int 0)          ///
                                 ///
@@ -992,7 +1012,7 @@ program parse_vars, rclass
     cap noi check_matsize `by'
     if ( _rc ) exit _rc
 
-    cap parse_by_types `by', `multi' `debug_force_hash'
+    cap parse_by_types `by', `legacy' `multi' `debug_force_hash'
     if ( _rc ) exit _rc
 
     * Locals to be read by C
@@ -1012,7 +1032,7 @@ end
 
 capture program drop parse_by_types
 program parse_by_types
-    syntax varlist [in], [multi] [debug_force_hash]
+    syntax varlist [in], [multi legacy] [debug_force_hash]
     cap matrix drop __gtools_byk
     cap matrix drop __gtools_bymin
     cap matrix drop __gtools_bymax
@@ -1043,7 +1063,7 @@ program parse_by_types
             }
             else if inlist("`:type `byvar''", "float", "double") {
                 if ( `=_N > 0' ) {
-                    cap plugin call gtools`multi'_plugin `byvar' `in', isint
+                    cap plugin call gtools`legacy'`multi'_plugin `byvar' `in', isint
                     if ( _rc ) exit _rc
                 }
                 else scalar __gtools_is_int = 0
@@ -1083,7 +1103,7 @@ program parse_by_types
         matrix c_gtools_bymin  = J(1, `knum', 0)
         matrix c_gtools_bymax  = J(1, `knum', 0)
         if ( `=_N > 0' ) {
-            cap plugin call gtools`multi'_plugin `varnum' `in', setup
+            cap plugin call gtools`legacy'`multi'_plugin `varnum' `in', setup
             if ( _rc ) exit _rc
         }
         matrix __gtools_bymin = c_gtools_bymin
@@ -1402,98 +1422,6 @@ real matrix function gtools_get_collapsed (string scalar fname, real scalar nrow
 end
 
 ***********************************************************************
-*                         Define the plugins                          *
-***********************************************************************
-
-cap program drop env_set
-program env_set, plugin using("env_set_`:di lower("`c(os)'")'.plugin")
-
-* Windows hack
-if ( "`c(os)'" == "Windows" ) {
-    cap confirm file spookyhash.dll
-    if ( _rc ) {
-        cap findfile spookyhash.dll
-        if ( _rc ) {
-            local url https://raw.githubusercontent.com/mcaceresb/stata-gtools
-            local url `url'/master/spookyhash.dll
-            di as err `"gtools: `hashlib'' not found."'
-            di as err `"gtools: download {browse "`url'":here} or run {opt gtools, dependencies}"'
-            exit _rc
-        }
-        mata: __gtools_hashpath = ""
-        mata: __gtools_dll = ""
-        mata: pathsplit(`"`r(fn)'"', __gtools_hashpath, __gtools_dll)
-        mata: st_local("__gtools_hashpath", __gtools_hashpath)
-        mata: mata drop __gtools_hashpath
-        mata: mata drop __gtools_dll
-        local path: env PATH
-        if inlist(substr(`"`path'"', length(`"`path'"'), 1), ";") {
-            mata: st_local("path", substr(`"`path'"', 1, `:length local path' - 1))
-        }
-        local __gtools_hashpath: subinstr local __gtools_hashpath "/" "\", all
-        local newpath `"`path';`__gtools_hashpath'"'
-        local truncate 2048
-        if ( `:length local newpath' > `truncate' ) {
-            local loops = ceil(`:length local newpath' / `truncate')
-            mata: __gtools_pathpieces = J(1, `loops', "")
-            mata: __gtools_pathcall   = ""
-            mata: for(k = 1; k <= `loops'; k++) __gtools_pathpieces[k] = substr(st_local("newpath"), 1 + (k - 1) * `truncate', `truncate')
-            mata: for(k = 1; k <= `loops'; k++) __gtools_pathcall = __gtools_pathcall + " `" + `"""' + __gtools_pathpieces[k] + `"""' + "' "
-            mata: st_local("pathcall", __gtools_pathcall)
-            mata: mata drop __gtools_pathcall __gtools_pathpieces
-            cap plugin call env_set, PATH `pathcall'
-        }
-        else {
-            cap plugin call env_set, PATH `"`path';`__gtools_hashpath'"'
-        }
-        if ( _rc ) {
-            cap confirm file spookyhash.dll
-            if ( _rc ) {
-                cap plugin call env_set, PATH `"`__gtools_hashpath'"'
-                if ( _rc ) {
-                    di as err `"gtools: Unable to add '`__gtools_hashpath'' to system PATH."'
-                    di as err `"gtools: download {browse "`url'":here} or run {opt gtools, dependencies}"'
-                    exit _rc
-                }
-            }
-        }
-    }
-}
-
-* The legacy versions segfault if they are not loaded first (Unix only)
-if ( `"`:di lower("`c(os)'")'"' == "unix" ) {
-    cap program drop __gtools_plugin
-    cap program __gtools_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_legacy.plugin"')
-
-    cap program drop __gtoolsmulti_plugin
-    cap program __gtoolsmulti_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_multi_legacy.plugin"')
-
-    * But we only want to use them when multi-threading fails normally
-    cap program drop gtoolsmulti_plugin
-    cap program gtoolsmulti_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_multi.plugin"')
-    if ( _rc ) {
-        cap program drop gtools_plugin
-        program gtools_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_legacy.plugin"')
-
-        cap program drop gtoolsmulti_plugin
-        cap program gtoolsmulti_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_multi_legacy.plugin"')
-    }
-    else {
-        cap program drop gtools_plugin
-        program gtools_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'.plugin"')
-    }
-}
-else {
-    cap program drop gtools_plugin
-    program gtools_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'.plugin"')
-
-    cap program drop gtoolsmulti_plugin
-    cap program gtoolsmulti_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'_multi.plugin"')
-}
-
-* This is very inelegant, but I have debugging fatigue, and this seems to work.
-
-***********************************************************************
 *                        Fallback to collapse                         *
 ***********************************************************************
 
@@ -1578,3 +1506,101 @@ program define GetTarget
         c_local `rhs' `rest'
     }
 end
+
+***********************************************************************
+*                         Define the plugins                          *
+***********************************************************************
+
+if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+else local c_os_: di lower("`c(os)'")
+
+cap program drop env_set
+program env_set, plugin using("env_set_`c_os_'.plugin")
+
+* Windows hack
+if ( "`c_os_'" == "windows" ) {
+    cap confirm file spookyhash.dll
+    if ( _rc ) {
+        cap findfile spookyhash.dll
+        if ( _rc ) {
+            local url https://raw.githubusercontent.com/mcaceresb/stata-gtools
+            local url `url'/master/spookyhash.dll
+            di as err `"gtools: `hashlib'' not found."'
+            di as err `"gtools: download {browse "`url'":here} or run {opt gtools, dependencies}"'
+            exit _rc
+        }
+        mata: __gtools_hashpath = ""
+        mata: __gtools_dll = ""
+        mata: pathsplit(`"`r(fn)'"', __gtools_hashpath, __gtools_dll)
+        mata: st_local("__gtools_hashpath", __gtools_hashpath)
+        mata: mata drop __gtools_hashpath
+        mata: mata drop __gtools_dll
+        local path: env PATH
+        if inlist(substr(`"`path'"', length(`"`path'"'), 1), ";") {
+            mata: st_local("path", substr(`"`path'"', 1, `:length local path' - 1))
+        }
+        local __gtools_hashpath: subinstr local __gtools_hashpath "/" "\", all
+        local newpath `"`path';`__gtools_hashpath'"'
+        local truncate 2048
+        if ( `:length local newpath' > `truncate' ) {
+            local loops = ceil(`:length local newpath' / `truncate')
+            mata: __gtools_pathpieces = J(1, `loops', "")
+            mata: __gtools_pathcall   = ""
+            mata: for(k = 1; k <= `loops'; k++) __gtools_pathpieces[k] = substr(st_local("newpath"), 1 + (k - 1) * `truncate', `truncate')
+            mata: for(k = 1; k <= `loops'; k++) __gtools_pathcall = __gtools_pathcall + " `" + `"""' + __gtools_pathpieces[k] + `"""' + "' "
+            mata: st_local("pathcall", __gtools_pathcall)
+            mata: mata drop __gtools_pathcall __gtools_pathpieces
+            cap plugin call env_set, PATH `pathcall'
+        }
+        else {
+            cap plugin call env_set, PATH `"`path';`__gtools_hashpath'"'
+        }
+        if ( _rc ) {
+            cap confirm file spookyhash.dll
+            if ( _rc ) {
+                cap plugin call env_set, PATH `"`__gtools_hashpath'"'
+                if ( _rc ) {
+                    di as err `"gtools: Unable to add '`__gtools_hashpath'' to system PATH."'
+                    di as err `"gtools: download {browse "`url'":here} or run {opt gtools, dependencies}"'
+                    exit _rc
+                }
+            }
+        }
+    }
+}
+
+if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+else local c_os_: di lower("`c(os)'")
+
+* The legacy versions segfault if they are not loaded first (Unix only)
+if ( "`c_os_'" == "unix" ) {
+    cap program drop __gtools_plugin
+    cap program gtoolslegacy_plugin, plugin using(`"gtools_`c_os_'_legacy.plugin"')
+
+    cap program drop __gtoolsmulti_plugin
+    cap program gtoolslegacymulti_plugin, plugin using(`"gtools_`c_os_'_multi_legacy.plugin"')
+
+    * But we only want to use them when multi-threading fails normally
+    cap program drop gtoolsmulti_plugin
+    cap program gtoolsmulti_plugin, plugin using(`"gtools_`c_os_'_multi.plugin"')
+    if ( _rc ) {
+        cap program drop gtools_plugin
+        program gtools_plugin, plugin using(`"gtools_`c_os_'_legacy.plugin"')
+
+        cap program drop gtoolsmulti_plugin
+        cap program gtoolsmulti_plugin, plugin using(`"gtools_`c_os_'_multi_legacy.plugin"')
+    }
+    else {
+        cap program drop gtools_plugin
+        program gtools_plugin, plugin using(`"gtools_`c_os_'.plugin"')
+    }
+}
+else {
+    cap program drop gtools_plugin
+    program gtools_plugin, plugin using(`"gtools_`c_os_'.plugin"')
+
+    cap program drop gtoolsmulti_plugin
+    cap program gtoolsmulti_plugin, plugin using(`"gtools_`c_os_'_multi.plugin"')
+}
+
+* This is very inelegant, but I have debugging fatigue, and this seems to work.

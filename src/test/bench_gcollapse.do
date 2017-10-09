@@ -52,7 +52,7 @@ end
 
 capture program drop bench_ftools
 program bench_ftools
-    syntax anything, by(str) [kvars(int 5) stats(str) kmin(int 4) kmax(int 7) *]
+    syntax anything, by(str) [kvars(int 5) stats(str) kmin(int 4) kmax(int 7) legacy *]
     if ("`stats'" == "") local stats sum
 
     local collapse ""
@@ -80,7 +80,7 @@ program bench_ftools
             timer clear
             timer on `i'
             mata: printf(" gcollapse ")
-                qui gcollapse `collapse', by(`by')
+                gcollapse `collapse', by(`by') fast `legacy'
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -90,7 +90,7 @@ program bench_ftools
             timer clear
             timer on `i'
             mata: printf(" collapse ")
-                qui collapse `collapse', by(`by')
+                qui collapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -100,7 +100,7 @@ program bench_ftools
             timer clear
             timer on `i'
             mata: printf(" fcollapse ")
-                qui fcollapse `collapse', by(`by')
+                qui fcollapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -129,7 +129,7 @@ end
 
 capture program drop bench_sample_size
 program bench_sample_size
-    syntax anything, by(str) [nj(int 10) pct(str) stats(str) kmin(int 4) kmax(int 7) *]
+    syntax anything, by(str) [nj(int 10) pct(str) stats(str) kmin(int 4) kmax(int 7) legacy *]
     * NOTE: sometimes, fcollapse can't do sd
     if ("`stats'" == "") local stats sum mean max min count percent first last firstnm lastnm
     local stats `stats' `pct'
@@ -159,7 +159,7 @@ program bench_sample_size
             timer clear
             timer on `i'
             mata: printf(" gcollapse ")
-                qui gcollapse `collapse', by(`by')
+                qui gcollapse `collapse', by(`by') fast `legacy'
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -169,7 +169,7 @@ program bench_sample_size
             timer clear
             timer on `i'
             mata: printf(" collapse ")
-                qui collapse `collapse', by(`by')
+                qui collapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -179,7 +179,7 @@ program bench_sample_size
             timer clear
             timer on `i'
             mata: printf(" fcollapse ")
-                qui fcollapse `collapse', by(`by')
+                qui fcollapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -204,7 +204,7 @@ end
 
 capture program drop bench_group_size
 program bench_group_size
-    syntax anything, by(str) [pct(str) stats(str) obsexp(int 6) kmin(int 1) kmax(int 6) *]
+    syntax anything, by(str) [pct(str) stats(str) obsexp(int 6) kmin(int 1) kmax(int 6) legacy *]
     * NOTE: fcollapse can't do sd, apparently
     if ("`stats'" == "") local stats sum mean max min count percent first last firstnm lastnm
     local stats `stats' `pct'
@@ -235,7 +235,7 @@ program bench_group_size
             timer clear
             timer on `i'
             mata: printf(" gcollapse ")
-                qui gcollapse `collapse', by(`by')
+                qui gcollapse `collapse', by(`by') fast `legacy'
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -245,7 +245,7 @@ program bench_group_size
             timer clear
             timer on `i'
             mata: printf(" collapse ")
-                qui collapse `collapse', by(`by')
+                qui collapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -255,7 +255,7 @@ program bench_group_size
             timer clear
             timer on `i'
             mata: printf(" fcollapse ")
-                qui fcollapse `collapse', by(`by')
+                qui fcollapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -284,7 +284,7 @@ end
 
 capture program drop bench_switch_fcoll
 program bench_switch_fcoll
-    syntax anything, style(str) [GCOLLapse(str) *]
+    syntax anything, style(str) [GCOLLapse(str) legacy *]
     if !inlist("`style'", "ftools", "gtools") {
         di as error "Don't know benchmark style '`style''; available: ftools, gtools"
         exit 198
@@ -366,7 +366,7 @@ program bench_switch_fcoll
             timer clear
             timer on `i'
             mata: printf(" gcollapse-default `options'")
-                qui gcollapse `collapse', by(`by') `options' fast
+                qui gcollapse `collapse', by(`by') `options' fast `legacy'
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'

@@ -1,9 +1,16 @@
-*! version 0.1.2 29Sep2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.1.4 08Oct2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! -isid- implementation using C for faster processing
 
 capture program drop gisid
 program gisid
     version 13
+    * if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+    * else local c_os_: di lower("`c(os)'")
+    *
+    * if inlist("`c_os_'", "macosx") {
+    *     di as err "Not available for MacOSX."
+    *     exit 198
+    * }
 
     * Time the entire function execution
     {
@@ -18,6 +25,7 @@ program gisid
         Verbose                /// debugging
         Benchmark              /// print benchmark info
         hashlib(str)           /// path to hash library (Windows only)
+        legacy                 /// force legacy version
         oncollision(str)       /// (experimental) On collision, fall back to isid or throw error
     ]
 
@@ -29,7 +37,7 @@ program gisid
         local hashusr 0
     }
     else local hashusr 1
-    if ( ("`c(os)'" == "Windows") & `hashusr' ) {
+    if ( ("`c_os_'" == "windows") & `hashusr' ) {
         cap confirm file spookyhash.dll
         if ( _rc | `hashusr' ) {
             cap findfile spookyhash.dll
@@ -94,36 +102,10 @@ program gisid
         di as err "option -oncollision()- must be 'fallback' or 'error'"
         exit 198
     }
-    
+
     ***********************************************************************
     *                             Final setup                             *
     ***********************************************************************
-
-    * Parse if missing are OK
-	if ( "`missok'" == "" ) {
-        marksample touse, novar
-		qui count if `touse'
-		local N = `r(N)'
-		markout `touse' `varlist', strok
-		qui count if `touse'
-		if ( `r(N)' < `N' ) {
-			local kvars: word count `varlist'
-			local s = cond(`kvars' == 1, "", "s")
-			di as err "variable`s' `varlist' should never be missing"
-			exit 459
-		}
-
-        if ( `r(N)' == 0 ) {
-            di as txt "(no observations)"
-            exit 0
-        }
-
-        local if if `touse'
-    }
-    else if ( "`if'" != "" ) {
-        marksample touse, novar
-        local if if `touse'
-    }
 
     * Get a list with all string by variables
     local bystr ""
@@ -145,12 +127,39 @@ program gisid
     if ( _rc ) exit _rc
 
     scalar __gtools_if         = ( "`if'" != "" )
+    scalar __gtools_missing    = 0 // Not used
     scalar __gtools_clean      = 0 // Not used
     scalar __gtools_sep_len    = 0 // Not used
     scalar __gtools_colsep_len = 0 // Not used
 
-    cap noi parse_by_types `varlist' `in'
+    cap noi parse_by_types `varlist' `in', `legacy'
     if ( _rc ) exit _rc
+
+    * Parse if missing are OK
+	if ( "`missok'" == "" ) {
+        marksample touse, novar
+		qui count if `touse'
+		local N = `r(N)'
+		markout `touse' `varlist', strok
+		qui count if `touse'
+		if ( `r(N)' < `N' ) {
+			local kvars: word count `varlist'
+			local s = cond(`kvars' == 1, "", "s")
+			di as err "variable`s' `varlist' should never be missing"
+			exit 459
+		}
+
+        if ( `r(N)' == 0 ) {
+            di as txt "(no observations)"
+            exit 0
+        }
+
+        if ( (`r(N)' == `N') & ("`if'" != "") ) local if if `touse'
+    }
+    else if ( "`if'" != "" ) {
+        marksample touse, novar
+        local if if `touse'
+    }
 
     * Position of string variables (the position in the variable list passed
     * to C has 1-based indexing, however)
@@ -181,7 +190,7 @@ program gisid
     local website_url  https://github.com/mcaceresb/stata-gtools/issues
     local website_disp github.com/mcaceresb/stata-gtools
 
-    cap noi plugin call gtools_plugin `varlist' `if' `in', isid
+    cap noi plugin call gtools`legacy'_plugin `varlist' `if' `in', isid
     if ( _rc == 42000 ) {
         di as err "There may be 128-bit hash collisions!"
         di as err `"This is a bug. Please report to {browse "`website_url'":`website_disp'}"'
@@ -189,7 +198,7 @@ program gisid
             cap noi collision_handler `0'
             exit _rc
         }
-        else exit 42000 
+        else exit 42000
     }
     else if ( _rc == 42007 ) {
         di as err `"gisid failed. This is a bug. Please report to {browse "`website_url'":`website_disp'}"'
@@ -197,7 +206,7 @@ program gisid
             cap noi collision_handler `0'
             exit _rc
         }
-        else exit 42007 
+        else exit 42007
     }
     else if ( _rc == 42001 ) {
         di as txt "(no observations)"
@@ -229,6 +238,9 @@ program gisid
     *                       Clean up after yourself                       *
     ***********************************************************************
 
+    cap matrix drop __gtools_strpos
+    cap matrix drop __gtools_numpos
+
     cap scalar drop __gtools_benchmark
     cap scalar drop __gtools_verbose
     cap scalar drop __gtools_if
@@ -248,7 +260,7 @@ end
 
 capture program drop parse_by_types
 program parse_by_types
-    syntax varlist [in]
+    syntax varlist [in], [legacy]
     cap matrix drop __gtools_byint
     cap matrix drop __gtools_byk
     cap matrix drop __gtools_bymin
@@ -280,7 +292,7 @@ program parse_by_types
             }
             else if inlist("`:type `byvar''", "float", "double") {
                 if ( `=_N > 0' ) {
-                    cap plugin call gtools_plugin `byvar' `in', isint
+                    cap plugin call gtools`legacy'_plugin `byvar' `in', isint
                     if ( _rc ) exit _rc
                 }
                 else scalar __gtools_is_int = 0
@@ -320,7 +332,7 @@ program parse_by_types
         matrix c_gtools_bymin  = J(1, `knum', 0)
         matrix c_gtools_bymax  = J(1, `knum', 0)
         if ( `=_N > 0' ) {
-            cap plugin call gtools_plugin `varnum' `in', setup
+            cap plugin call gtools`legacy'_plugin `varnum' `in', setup
             if ( _rc ) exit _rc
         }
         matrix __gtools_bymin = c_gtools_bymin
@@ -406,11 +418,14 @@ end
 *                               Plugins                               *
 ***********************************************************************
 
+if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+else local c_os_: di lower("`c(os)'")
+
 cap program drop env_set
-program env_set, plugin using("env_set_`:di lower("`c(os)'")'.plugin")
+program env_set, plugin using("env_set_`c_os_'.plugin")
 
 * Windows hack
-if ( "`c(os)'" == "Windows" ) {
+if ( "`c_os_'" == "windows" ) {
     cap confirm file spookyhash.dll
     if ( _rc ) {
         cap findfile spookyhash.dll
@@ -461,5 +476,13 @@ if ( "`c(os)'" == "Windows" ) {
     }
 }
 
+if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
+else local c_os_: di lower("`c(os)'")
+
 cap program drop gtools_plugin
-program gtools_plugin, plugin using(`"gtools_`:di lower("`c(os)'")'.plugin"')
+program gtools_plugin, plugin using(`"gtools_`c_os_'.plugin"')
+
+if ( "`c_os_'" == "unix" ) {
+    cap program drop __gtools_plugin
+    cap program gtoolslegacy_plugin, plugin using(`"gtools_`c_os_'_legacy.plugin"')
+}

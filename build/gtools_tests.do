@@ -3,9 +3,9 @@
 * Program: gtools_tests.do
 * Author:  Mauricio Caceres Bravo <mauricio.caceres.bravo@gmail.com>
 * Created: Tue May 16 07:23:02 EDT 2017
-* Updated: Thu Sep 28 18:40:14 EDT 2017
+* Updated: Mon Oct  9 14:06:44 EDT 2017
 * Purpose: Unit tests for gtools
-* Version: 0.6.20
+* Version: 0.7.5
 * Manual:  help gcollapse, help gegen
 
 * Stata start-up options
@@ -18,12 +18,13 @@ set varabbrev off
 * set seed 42
 set seed 1729
 set linesize 128
+ssc install ralpha
 
 * Main program wrapper
 * --------------------
 
 program main
-    syntax, [CAPture NOIsily *]
+    syntax, [CAPture NOIsily legacy *]
 
     * Set up
     * ------
@@ -38,9 +39,11 @@ program main
     `capture' `noisily' {
         * do test_gcollapse.do
         * do test_gegen.do
+        * do test_hashsort.do
         * do test_gisid.do
         * do test_glevelsof.do
         * do bench_gcollapse.do
+
         if ( `:list posof "checks" in options' ) {
 
             di ""
@@ -48,26 +51,31 @@ program main
             di "Basic unit-tests $S_TIME $S_DATE"
             di "-------------------------------------"
 
-            unit_test, `noisily' test(checks_corners, oncollision(error) debug_force_single)
+            unit_test, `noisily' test(checks_corners, oncollision(error) debug_force_single `legacy')
 
-            unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_single)
-            unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_single forceio debug_io_read_method(0))
-            unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_single forceio debug_io_read_method(1))
+            unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_single `legacy')
+            unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_single forceio debug_io_read_method(0) `legacy')
+            unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_single forceio debug_io_read_method(1) `legacy')
 
-            unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_single)
-            unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_single debug_io_read_method(0))
-            unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_single debug_io_read_method(1))
+            unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_single `legacy')
+            unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_single debug_io_read_method(0) `legacy')
+            unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_single debug_io_read_method(1) `legacy')
 
+<<<<<<< HEAD
             if inlist("`c(os)'", "Unix") {
                 unit_test, `noisily' test(checks_corners, oncollision(error) debug_force_multi)
+=======
+            if !inlist("`c(os)'", "Windows") {
+                unit_test, `noisily' test(checks_corners, oncollision(error) debug_force_multi `legacy')
+>>>>>>> develop
 
-                unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_multi)
-                unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_multi forceio debug_io_read_method(0))
-                unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_multi forceio debug_io_read_method(1))
+                unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_multi `legacy')
+                unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_multi forceio debug_io_read_method(0) `legacy')
+                unit_test, `noisily' test(checks_byvars_gcollapse,  oncollision(error) debug_force_multi forceio debug_io_read_method(1) `legacy')
 
-                unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_multi)
-                unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_multi debug_io_read_method(0))
-                unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_multi debug_io_read_method(1))
+                unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_multi `legacy')
+                unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_multi debug_io_read_method(0) `legacy')
+                unit_test, `noisily' test(checks_options_gcollapse, oncollision(error) debug_force_multi debug_io_read_method(1) `legacy')
             }
 
             di ""
@@ -75,14 +83,15 @@ program main
             di "Consistency checks (vs collapse, egen) $S_TIME $S_DATE"
             di "-----------------------------------------------------------"
 
-            consistency_gcollapse,       `noisily' oncollision(error) debug_force_single
-            consistency_gcollapse,       `noisily' oncollision(error) debug_force_single forceio debug_io_read_method(0)
-            consistency_gcollapse,       `noisily' oncollision(error) debug_force_single forceio debug_io_read_method(1)
-            consistency_gcollapse,       `noisily' oncollision(error) debug_force_single debug_io_check(1) debug_io_threshold(0.1)
-            consistency_gcollapse,       `noisily' oncollision(error) debug_force_single debug_io_check(1) debug_io_threshold(1000000)
-            consistency_gegen,           `noisily' oncollision(error) debug_force_single
-            consistency_gegen_gcollapse, `noisily' oncollision(error) debug_force_single
+            consistency_gcollapse,       `noisily' oncollision(error) debug_force_single `legacy'
+            consistency_gcollapse,       `noisily' oncollision(error) debug_force_single forceio debug_io_read_method(0) `legacy'
+            consistency_gcollapse,       `noisily' oncollision(error) debug_force_single forceio debug_io_read_method(1) `legacy'
+            consistency_gcollapse,       `noisily' oncollision(error) debug_force_single debug_io_check(1) debug_io_threshold(0.1) `legacy'
+            consistency_gcollapse,       `noisily' oncollision(error) debug_force_single debug_io_check(1) debug_io_threshold(1000000) `legacy'
+            consistency_gegen,           `noisily' oncollision(error) debug_force_single `legacy'
+            consistency_gegen_gcollapse, `noisily' oncollision(error) debug_force_single `legacy'
 
+<<<<<<< HEAD
             if inlist("`c(os)'", "Unix") {
                 consistency_gcollapse,       `noisily' oncollision(error) debug_force_multi
                 consistency_gcollapse,       `noisily' oncollision(error) debug_force_multi forceio debug_io_read_method(0)
@@ -91,6 +100,16 @@ program main
                 consistency_gcollapse,       `noisily' oncollision(error) debug_force_multi debug_io_check(1) debug_io_threshold(1000000)
                 consistency_gegen,           `noisily' oncollision(error) debug_force_multi
                 consistency_gegen_gcollapse, `noisily' oncollision(error) debug_force_multi
+=======
+            if !inlist("`c(os)'", "Windows") {
+                consistency_gcollapse,       `noisily' oncollision(error) debug_force_multi `legacy'
+                consistency_gcollapse,       `noisily' oncollision(error) debug_force_multi forceio debug_io_read_method(0) `legacy'
+                consistency_gcollapse,       `noisily' oncollision(error) debug_force_multi forceio debug_io_read_method(1) `legacy'
+                consistency_gcollapse,       `noisily' oncollision(error) debug_force_multi debug_io_check(1) debug_io_threshold(0.1) `legacy'
+                consistency_gcollapse,       `noisily' oncollision(error) debug_force_multi debug_io_check(1) debug_io_threshold(1000000) `legacy'
+                consistency_gegen,           `noisily' oncollision(error) debug_force_multi `legacy'
+                consistency_gegen_gcollapse, `noisily' oncollision(error) debug_force_multi `legacy'
+>>>>>>> develop
             }
 
             di ""
@@ -98,19 +117,21 @@ program main
             di "Check extra $S_TIME $S_DATE"     
             di "--------------------------------"
 
-            unit_test, `noisily' test(checks_isid,     `noisily' oncollision(error))
-            unit_test, `noisily' test(checks_levelsof, `noisily' oncollision(error))
+            unit_test, `noisily' test(checks_hashsort, `noisily' oncollision(error) `legacy')
+            unit_test, `noisily' test(checks_isid,     `noisily' oncollision(error) `legacy')
+            unit_test, `noisily' test(checks_levelsof, `noisily' oncollision(error) `legacy')
 
-            compare_isid,     `noisily' oncollision(error)
-            compare_levelsof, `noisily' oncollision(error)
+            compare_isid,     `noisily' oncollision(error) `legacy'
+            compare_levelsof, `noisily' oncollision(error) `legacy'
+            compare_hashsort, `noisily' oncollision(error) `legacy'
         }
 
         if ( `:list posof "bench_gtools" in options' ) {
-            bench_switch_fcoll y1 y2 y3 y4 y5 y6 y7 y8 y9 y10 y11 y12 y13 y14 y15, by(x3) kmin(4) kmax(7) kvars(15) style(ftools) gcoll(debug_force_single)
-            bench_switch_fcoll y1 y2 y3,          by(x3)  kmin(4) kmax(7) kvars(3) stats(mean median)               style(ftools) gcoll(debug_force_single)
-            bench_switch_fcoll y1 y2 y3 y4 y5 y6, by(x3)  kmin(4) kmax(7) kvars(6) stats(sum mean count min max)    style(ftools) gcoll(debug_force_single)
-            bench_switch_fcoll x1 x2, margin(N) by(group) kmin(4) kmax(7) pct(median iqr p23 p77)                   style(gtools) gcoll(debug_force_single)
-            bench_switch_fcoll x1 x2, margin(J) by(group) kmin(1) kmax(6) pct(median iqr p23 p77) obsexp(6)         style(gtools) gcoll(debug_force_single)
+            bench_switch_fcoll y1 y2 y3 y4 y5 y6 y7 y8 y9 y10 y11 y12 y13 y14 y15, by(x3) kmin(4) kmax(7) kvars(15) style(ftools) gcoll(debug_force_single `legacy')
+            bench_switch_fcoll y1 y2 y3,          by(x3)  kmin(4) kmax(7) kvars(3) stats(mean median)               style(ftools) gcoll(debug_force_single `legacy')
+            bench_switch_fcoll y1 y2 y3 y4 y5 y6, by(x3)  kmin(4) kmax(7) kvars(6) stats(sum mean count min max)    style(ftools) gcoll(debug_force_single `legacy')
+            bench_switch_fcoll x1 x2, margin(N) by(group) kmin(4) kmax(7) pct(median iqr p23 p77)                   style(gtools) gcoll(debug_force_single `legacy')
+            bench_switch_fcoll x1 x2, margin(J) by(group) kmin(1) kmax(6) pct(median iqr p23 p77) obsexp(6)         style(gtools) gcoll(debug_force_single `legacy')
         }
 
         if ( `:list posof "test" in options' ) {
@@ -118,39 +139,46 @@ program main
             cap ssc install moremata
 
             di "Short (quick) versions of the benchmarks"
-            bench_ftools y1 y2 y3 y4 y5 y6 y7 y8 y9 y10 y11 y12 y13 y14 y15, by(x3) kmin(3) kmax(4) kvars(15)
-            bench_ftools y1 y2 y3,          by(x3) kmin(3) kmax(4) kvars(3) stats(mean median)
-            bench_ftools y1 y2 y3 y4 y5 y6, by(x3) kmin(3) kmax(4) kvars(6) stats(sum mean count min max)
-            bench_sample_size x1 x2, by(group) kmin(3) kmax(4) pct(median iqr p23 p77)
-            bench_group_size  x1 x2, by(group) kmin(2) kmax(3) pct(median iqr p23 p77) obsexp(3)
+            bench_ftools y1 y2 y3 y4 y5 y6 y7 y8 y9 y10 y11 y12 y13 y14 y15, by(x3) kmin(3) kmax(4) kvars(15) `legacy'
+            bench_ftools y1 y2 y3,          by(x3) kmin(3) kmax(4) kvars(3) stats(mean median) `legacy'
+            bench_ftools y1 y2 y3 y4 y5 y6, by(x3) kmin(3) kmax(4) kvars(6) stats(sum mean count min max) `legacy'
+            bench_sample_size x1 x2, by(group) kmin(3) kmax(4) pct(median iqr p23 p77) `legacy'
+            bench_group_size  x1 x2, by(group) kmin(2) kmax(3) pct(median iqr p23 p77) obsexp(3) `legacy'
 
-            bench_switch_fcoll y1 y2 y3 y4 y5 y6 y7 y8 y9 y10 y11 y12 y13 y14 y15, by(x3) kmin(3) kmax(4) kvars(15) style(ftools)
-            bench_switch_fcoll y1 y2 y3,          by(x3)    kmin(3) kmax(4) kvars(3) stats(mean median)             style(ftools)
-            bench_switch_fcoll y1 y2 y3 y4 y5 y6, by(x3)    kmin(3) kmax(4) kvars(6) stats(sum mean count min max)  style(ftools)
-            bench_switch_fcoll x1 x2, margin(N)   by(group) kmin(3) kmax(4) pct(median iqr p23 p77)                 style(gtools)
-            bench_switch_fcoll x1 x2, margin(J)   by(group) kmin(2) kmax(3) pct(median iqr p23 p77) obsexp(3)       style(gtools)
+            bench_switch_fcoll y1 y2 y3 y4 y5 y6 y7 y8 y9 y10 y11 y12 y13 y14 y15, by(x3) kmin(3) kmax(4) kvars(15) style(ftools) `legacy'
+            bench_switch_fcoll y1 y2 y3,          by(x3)    kmin(3) kmax(4) kvars(3) stats(mean median)             style(ftools) `legacy'
+            bench_switch_fcoll y1 y2 y3 y4 y5 y6, by(x3)    kmin(3) kmax(4) kvars(6) stats(sum mean count min max)  style(ftools) `legacy'
+            bench_switch_fcoll x1 x2, margin(N)   by(group) kmin(3) kmax(4) pct(median iqr p23 p77)                 style(gtools) `legacy'
+            bench_switch_fcoll x1 x2, margin(J)   by(group) kmin(2) kmax(3) pct(median iqr p23 p77) obsexp(3)       style(gtools) `legacy'
         }
 
         if ( `:list posof "benchmark" in options' ) {
             cap ssc install ftools
             cap ssc install moremata
 
-            bench_ftools y1 y2 y3 y4 y5 y6 y7 y8 y9 y10 y11 y12 y13 y14 y15, by(x3) kmin(4) kmax(7) kvars(15)
-            bench_ftools y1 y2 y3,             by(x3)    kmin(4) kmax(7) kvars(3) stats(mean median)
-            bench_ftools y1 y2 y3 y4 y5 y6,    by(x3)    kmin(4) kmax(7) kvars(6) stats(sum mean count min max)
-            bench_sample_size x1 x2, margin(N) by(group) kmin(4) kmax(7) pct(median iqr p23 p77)
-            bench_group_size  x1 x2, margin(J) by(group) kmin(3) kmax(6) pct(median iqr p23 p77) obsexp(6)
+            bench_ftools y1 y2 y3 y4 y5 y6 y7 y8 y9 y10 y11 y12 y13 y14 y15, by(x3) kmin(5) kmax(7) kvars(15) `legacy'
+            bench_ftools y1 y2 y3,             by(x3)    kmin(5) kmax(7) kvars(3) stats(mean median) `legacy'
+            bench_ftools y1 y2 y3 y4 y5 y6,    by(x3)    kmin(5) kmax(7) kvars(6) stats(sum mean count min max) `legacy'
+            bench_sample_size x1 x2, margin(N) by(group) kmin(5) kmax(7) pct(median iqr p23 p77) `legacy'
+            bench_group_size  x1 x2, margin(J) by(group) kmin(4) kmax(6) pct(median iqr p23 p77) obsexp(6) `legacy'
         }
 
         if ( `:list posof "bench_fcoll" in options' ) {
             cap ssc install ftools
             cap ssc install moremata
 
-            bench_switch_fcoll y1 y2 y3 y4 y5 y6 y7 y8 y9 y10 y11 y12 y13 y14 y15, by(x3) kmin(4) kmax(7) kvars(15) style(ftools)
-            bench_switch_fcoll y1 y2 y3,          by(x3)  kmin(4) kmax(7) kvars(3) stats(mean median)               style(ftools)
-            bench_switch_fcoll y1 y2 y3 y4 y5 y6, by(x3)  kmin(4) kmax(7) kvars(6) stats(sum mean count min max)    style(ftools)
-            bench_switch_fcoll x1 x2, margin(N) by(group) kmin(4) kmax(7) pct(median iqr p23 p77)                   style(gtools)
-            bench_switch_fcoll x1 x2, margin(J) by(group) kmin(1) kmax(6) pct(median iqr p23 p77) obsexp(6)         style(gtools)
+            bench_switch_fcoll y1 y2 y3 y4 y5 y6 y7 y8 y9 y10 y11 y12 y13 y14 y15, by(x3) kmin(4) kmax(7) kvars(15) style(ftools) `legacy'
+            bench_switch_fcoll y1 y2 y3,          by(x3)  kmin(4) kmax(7) kvars(3) stats(mean median)               style(ftools) `legacy'
+            bench_switch_fcoll y1 y2 y3 y4 y5 y6, by(x3)  kmin(4) kmax(7) kvars(6) stats(sum mean count min max)    style(ftools) `legacy'
+            bench_switch_fcoll x1 x2, margin(N) by(group) kmin(4) kmax(7) pct(median iqr p23 p77)                   style(gtools) `legacy'
+            bench_switch_fcoll x1 x2, margin(J) by(group) kmin(1) kmax(6) pct(median iqr p23 p77) obsexp(6)         style(gtools) `legacy'
+        }
+
+        if ( `:list posof "bench_extra" in options' ) {
+            compare_hashsort, bench(10) `legacy'
+            bench_levelsof,   bench(10) `legacy'
+            bench_isid,       bench(10) `legacy'
+            bench_egen,       bench(10) `legacy'
         }
     }
     local rc = _rc
@@ -307,6 +335,7 @@ program sim, rclass
     return local string = ("`string'" != "")
 end
 
+* ---------------------------------------------------------------------
 capture program drop consistency_gcollapse
 program consistency_gcollapse
     syntax, [tol(real 1e-6) NOIsily *]
@@ -584,8 +613,8 @@ program checks_corners
     qui {
         sysuse auto, clear
         gen price2 = price
-        gcollapse price = price2, by(make)
-        gcollapse price in 1, by(make)
+        gcollapse price = price2, by(make) v b `options'
+        gcollapse price in 1,     by(make) v b `options'
     }
 
     qui {
@@ -689,6 +718,19 @@ program consistency_gegen
         else di as txt "    compare_egen (passed): gegen `fun' results similar to egen (tol = `tol')"
     }
 
+    {
+        qui  `noisily' gegen g_g1 = group(groupstr groupsub), counts(g_c1) fill(.)  v `options' missing
+        qui  `noisily' gegen g_g2 = group(groupstr groupsub), counts(g_c2)          v `options' missing
+        qui  `noisily' gegen g_c3 = count(1), by(groupstr groupsub)
+        qui  `noisily'  egen c_t1 = tag(groupstr groupsub),   missing
+        cap noi assert ( (g_c1 == g_c3) | (c_t1 == 0) ) & (g_c2 == g_c3)
+        if ( _rc ) {
+            di as err "    compare_egen (failed): gegen `fun' counts not equal to gegen count (tol = `tol')"
+            exit _rc
+        }
+        else di as txt "    compare_egen (passed): gegen `fun' counts results similar to gegen count (tol = `tol')"
+    }
+
     * ---------------------------------------------------------------------
     * ---------------------------------------------------------------------
 
@@ -726,6 +768,19 @@ program consistency_gegen
             exit _rc
         }
         else di as txt "    compare_egen_if (passed): gegen `fun' results similar to egen (tol = `tol')"
+    }
+
+    {
+        qui  `noisily' gegen g_g1 = group(groupstr groupsub) if rsort > 0, counts(g_c1) fill(.)  v `options' missing
+        qui  `noisily' gegen g_g2 = group(groupstr groupsub) if rsort > 0, counts(g_c2)          v `options' missing
+        qui  `noisily' gegen g_c3 = count(1) if rsort > 0, by(groupstr groupsub)
+        qui  `noisily'  egen c_t1 = tag(groupstr groupsub) if rsort > 0, missing
+        cap noi assert ( (g_c1 == g_c3) | (c_t1 == 0) ) & (g_c2 == g_c3)
+        if ( _rc ) {
+            di as err "    compare_egen (failed): gegen `fun' counts not equal to gegen count (tol = `tol')"
+            exit _rc
+        }
+        else di as txt "    compare_egen (passed): gegen `fun' counts results similar to gegen count (tol = `tol')"
     }
 
     * ---------------------------------------------------------------------
@@ -779,6 +834,23 @@ program consistency_gegen
         else di as txt "    compare_egen_in (passed): gegen `fun' results similar to egen (tol = `tol')"
     }
 
+    {
+        local in1 = ceil((0.00 + 0.25 * runiform()) * `=_N')
+        local in2 = ceil((0.75 + 0.25 * runiform()) * `=_N')
+        local from = cond(`in1' < `in2', `in1', `in2')
+        local to   = cond(`in1' > `in2', `in1', `in2')
+        qui  `noisily' gegen g_g1 = group(groupstr groupsub) in `from' / `to', counts(g_c1) fill(.)  v `options' missing
+        qui  `noisily' gegen g_g2 = group(groupstr groupsub) in `from' / `to', counts(g_c2)          v `options' missing
+        qui  `noisily' gegen g_c3 = count(1) in `from' / `to', by(groupstr groupsub)
+        qui  `noisily'  egen c_t1 = tag(groupstr groupsub) in `from' / `to', missing
+        cap noi assert ( (g_c1 == g_c3) | (c_t1 == 0) ) & (g_c2 == g_c3)
+        if ( _rc ) {
+            di as err "    compare_egen (failed): gegen `fun' counts not equal to gegen count (tol = `tol')"
+            exit _rc
+        }
+        else di as txt "    compare_egen (passed): gegen `fun' counts results similar to gegen count (tol = `tol')"
+    }
+
     * ---------------------------------------------------------------------
     * ---------------------------------------------------------------------
 
@@ -828,6 +900,23 @@ program consistency_gegen
             exit _rc
         }
         else di as txt "    compare_egen_ifin (passed): gegen `fun' results similar to egen (tol = `tol')"
+    }
+
+    {
+        local in1 = ceil((0.00 + 0.25 * runiform()) * `=_N')
+        local in2 = ceil((0.75 + 0.25 * runiform()) * `=_N')
+        local from = cond(`in1' < `in2', `in1', `in2')
+        local to   = cond(`in1' > `in2', `in1', `in2')
+        qui  `noisily' gegen g_g1 = group(groupstr groupsub) if rsort < 0 in `from' / `to', counts(g_c1) fill(.)  v `options' missing
+        qui  `noisily' gegen g_g2 = group(groupstr groupsub) if rsort < 0 in `from' / `to', counts(g_c2)          v `options' missing
+        qui  `noisily' gegen g_c3 = count(1) if rsort < 0 in `from' / `to', by(groupstr groupsub)
+        qui  `noisily'  egen c_t1 = tag(groupstr groupsub) if rsort < 0 in `from' / `to', missing
+        cap noi assert ( (g_c1 == g_c3) | (c_t1 == 0) ) & (g_c2 == g_c3)
+        if ( _rc ) {
+            di as err "    compare_egen (failed): gegen `fun' counts not equal to gegen count (tol = `tol')"
+            exit _rc
+        }
+        else di as txt "    compare_egen (passed): gegen `fun' counts results similar to gegen count (tol = `tol')"
     }
 end
 
@@ -1003,6 +1092,108 @@ program consistency_gegen_gcollapse
         }
         else di as txt "    compare_gegen_gcollapse_ifin (passed): `fun' yielded same results (tol = `tol')"
     }
+end
+
+***********************************************************************
+*                             Benchmarks                              *
+***********************************************************************
+
+capture program drop bench_egen
+program bench_egen
+    syntax, [tol(real 1e-6) bench(int 1) NOIsily *]
+
+    cap gen_data, n(10000) expand(`=100 * `bench'')
+    qui gen rsort = rnormal()
+    qui sort rsort
+
+    local N = trim("`: di %15.0gc _N'")
+
+    di _n(1)
+    di "Benchmark vs egen, obs = `N', J = 10,000 (in seconds)"
+    di "     egen | fegen | gegen | ratio (i/g) | ratio (f/g) | varlist"
+    di "     ---- | ----- | ----- | ----------- | ----------- | -------"
+
+    versus_egen str_12,              `options' fegen
+    versus_egen str_12 str_32,       `options' fegen
+    versus_egen str_12 str_32 str_4, `options' fegen
+
+    versus_egen double1,                 `options' fegen
+    versus_egen double1 double2,         `options' fegen
+    versus_egen double1 double2 double3, `options' fegen
+
+    versus_egen int1,           `options' fegen
+    versus_egen int1 int2,      `options' fegen
+    versus_egen int1 int2 int3, `options' fegen
+
+    versus_egen int1 str_32 double1,                                        `options'
+    versus_egen int1 str_32 double1 int2 str_12 double2,                    `options'
+    versus_egen int1 str_32 double1 int2 str_12 double2 int3 str_4 double3, `options'
+
+    di _n(1) "{hline 80}" _n(1) "bench_egen, `options'" _n(1) "{hline 80}" _n(1)
+end
+
+capture program drop gen_data
+program gen_data
+    syntax, [n(int 100) expand(int 1)]
+    clear
+    set obs `n'
+    qui ralpha str_long,  l(5)
+    qui ralpha str_mid,   l(3)
+    qui ralpha str_short, l(1)
+    gen str32 str_32   = str_long + "this is some string padding"
+    gen str12 str_12   = str_mid  + "padding" + str_short + str_short
+    gen str4  str_4    = str_mid  + str_short
+
+    gen long int1  = floor(rnormal())
+    gen long int2  = floor(uniform() * 1000)
+    gen long int3  = floor(rnormal() * 5 + 10)
+
+    gen double double1 = rnormal()
+    gen double double2 = uniform() * 1000
+    gen double double3 = rnormal() * 5 + 10
+
+    qui expand `expand'
+end
+
+capture program drop versus_egen
+program versus_egen, rclass
+    syntax varlist, [fegen unique *]
+
+    preserve
+        timer clear
+        timer on 42
+        cap egen id = group(`varlist')
+        timer off 42
+        qui timer list
+        local time_egen = r(t42)
+    restore
+
+    preserve
+        timer clear
+        timer on 43
+        cap gegen id = group(`varlist'), `options'
+        timer off 43
+        qui timer list
+        local time_gegen = r(t43)
+    restore
+
+    if ( "`fegen'" == "fegen" ) {
+    preserve
+        timer clear
+        timer on 44
+        cap fegen id = group(`varlist')
+        timer off 44
+        qui timer list
+        local time_fegen = r(t44)
+    restore
+    }
+    else {
+        local time_fegen = .
+    }
+
+    local rs = `time_egen'  / `time_gegen'
+    local rf = `time_fegen' / `time_gegen'
+    di "    `:di %5.3g `time_egen'' | `:di %5.3g `time_fegen'' | `:di %5.3g `time_gegen'' | `:di %11.3g `rs'' | `:di %11.3g `rf'' | `varlist'"
 end
 capture program drop checks_isid
 program checks_isid
@@ -1198,10 +1389,315 @@ program check_rc
         }
     }
 end
+
+***********************************************************************
+*                             Benchmarks                              *
+***********************************************************************
+
+capture program drop bench_isid
+program bench_isid
+    syntax, [tol(real 1e-6) bench(int 1) NOIsily *]
+
+    cap gen_data, n(10000) expand(`=100 * `bench'')
+    qui gen rsort = rnormal()
+    qui sort rsort
+
+    local N = trim("`: di %15.0gc _N'")
+
+    di _n(1)
+    di "Benchmark vs isid, obs = `N', all calls include an index to ensure uniqueness (in seconds)"
+    di "     isid | fisid | gisid | ratio (i/g) | ratio (f/g) | varlist"
+    di "     ---- | ----- | ----- | ----------- | ----------- | -------"
+
+    versus_isid str_12,              `options' fisid unique
+    versus_isid str_12 str_32,       `options' fisid unique
+    versus_isid str_12 str_32 str_4, `options' fisid unique
+
+    versus_isid double1,                 `options' fisid unique
+    versus_isid double1 double2,         `options' fisid unique
+    versus_isid double1 double2 double3, `options' fisid unique
+
+    versus_isid int1,           `options' fisid unique
+    versus_isid int1 int2,      `options' fisid unique
+    versus_isid int1 int2 int3, `options' fisid unique
+
+    versus_isid int1 str_32 double1,                                        unique `options'
+    versus_isid int1 str_32 double1 int2 str_12 double2,                    unique `options'
+    versus_isid int1 str_32 double1 int2 str_12 double2 int3 str_4 double3, unique `options'
+
+    di _n(1)
+    di "Benchmark vs isid, obs = `N', J = 10,000 (in seconds)"
+    di "     isid | fisid | gisid | ratio (i/g) | ratio (f/g) | varlist"
+    di "     ---- | ----- | ----- | ----------- | ----------- | -------"
+
+    versus_isid str_12,              `options' fisid
+    versus_isid str_12 str_32,       `options' fisid
+    versus_isid str_12 str_32 str_4, `options' fisid
+
+    versus_isid double1,                 `options' fisid
+    versus_isid double1 double2,         `options' fisid
+    versus_isid double1 double2 double3, `options' fisid
+
+    versus_isid int1,           `options' fisid
+    versus_isid int1 int2,      `options' fisid
+    versus_isid int1 int2 int3, `options' fisid
+
+    versus_isid int1 str_32 double1,                                        `options'
+    versus_isid int1 str_32 double1 int2 str_12 double2,                    `options'
+    versus_isid int1 str_32 double1 int2 str_12 double2 int3 str_4 double3, `options'
+
+    di _n(1) "{hline 80}" _n(1) "bench_isid, `options'" _n(1) "{hline 80}" _n(1)
+end
+
+capture program drop gen_data
+program gen_data
+    syntax, [n(int 100) expand(int 1)]
+    clear
+    set obs `n'
+    qui ralpha str_long,  l(5)
+    qui ralpha str_mid,   l(3)
+    qui ralpha str_short, l(1)
+    gen str32 str_32   = str_long + "this is some string padding"
+    gen str12 str_12   = str_mid  + "padding" + str_short + str_short
+    gen str4  str_4    = str_mid  + str_short
+
+    gen long int1  = floor(rnormal())
+    gen long int2  = floor(uniform() * 1000)
+    gen long int3  = floor(rnormal() * 5 + 10)
+
+    gen double double1 = rnormal()
+    gen double double2 = uniform() * 1000
+    gen double double3 = rnormal() * 5 + 10
+
+    qui expand `expand'
+end
+
+capture program drop versus_isid
+program versus_isid, rclass
+    syntax varlist, [fisid unique *]
+    if ( "`unique'" == "unique" ) {
+        tempvar ix
+        gen `ix' = `=_N' - _n
+        if ( strpos("`varlist'", "str") ) qui tostring `ix', replace
+    }
+
+    preserve
+        timer clear
+        timer on 42
+        cap isid `varlist' `ix'
+        assert inlist(_rc, 0, 459)
+        timer off 42
+        qui timer list
+        local time_isid = r(t42)
+    restore
+
+    preserve
+        timer clear
+        timer on 43
+        cap gisid `varlist' `ix', `options'
+        assert inlist(_rc, 0, 459)
+        timer off 43
+        qui timer list
+        local time_gisid = r(t43) 
+    restore
+
+    if ( "`fisid'" == "fisid" ) {
+    preserve
+        timer clear
+        timer on 44
+        cap fisid `varlist' `ix'
+        assert inlist(_rc, 0, 459)
+        timer off 44
+        qui timer list
+        local time_fisid = r(t44)
+    restore
+    }
+    else {
+        local time_fisid = .
+    }
+
+    local rs = `time_isid'  / `time_gisid'
+    local rf = `time_fisid' / `time_gisid'
+    di "    `:di %5.3g `time_isid'' | `:di %5.3g `time_fisid'' | `:di %5.3g `time_gisid'' | `:di %11.3g `rs'' | `:di %11.3g `rf'' | `varlist'"
+end
+capture program drop checks_hashsort
+program checks_hashsort
+    syntax, [tol(real 1e-6) NOIsily *]
+    di _n(1) "{hline 80}" _n(1) "checks_hashsort, `options'" _n(1) "{hline 80}" _n(1)
+    sysuse auto, clear
+    gen idx = _n
+    hashsort -foreign rep78 make -mpg, `options'
+    hashsort idx,                      `options'
+    hashsort -foreign rep78,           `options'
+    hashsort idx,                      `options'
+    hashsort foreign rep78 mpg,        `options'
+    hashsort idx,                      `options' v b
+end
+
+capture program drop compare_hashsort
+program compare_hashsort
+    syntax, [tol(real 1e-6) NOIsily bench(int 1) *]
+
+    cap gen_data, n(10000)
+    qui expand 10 * `bench'
+    qui gen rsort = rnormal()
+    qui sort rsort
+
+    local N = trim("`: di %15.0gc _N'")
+
+    di _n(1)
+    di "Benchmark vs gsort, obs = `N', J = 10,000 (in seconds; datasets are compared via {opt cf})"
+    di "    gsort | hashsort | ratio (g/h) | varlist"
+    di "    ----- | -------- | ----------- | -------"
+
+    compare_gsort -str_12,              `options'
+    compare_gsort str_12 -str_32,       `options'
+    compare_gsort str_12 -str_32 str_4, `options'
+
+    compare_gsort -double1,                 `options'
+    compare_gsort double1 -double2,         `options'
+    compare_gsort double1 -double2 double3, `options'
+
+    compare_gsort -int1,           `options'
+    compare_gsort int1 -int2,      `options'
+    compare_gsort int1 -int2 int3, `options'
+
+    compare_gsort -int1 -str_32 -double1,                                         `options'
+    compare_gsort int1 -str_32 double1 -int2 str_12 -double2,                     `options'
+    compare_gsort int1 -str_32 double1 -int2 str_12 -double2 int3 -str_4 double3, `options'
+
+    qui expand 10
+    local N = trim("`: di %15.0gc _N'")
+
+    di _n(1)
+    di "Benchmark vs sort, obs = `N', J = 10,000 (in seconds; datasets are compared via {opt cf})"
+    di "     sort | fsort | hashsort | ratio (g/h) | ratio (f/h) | varlist"
+    di "     ---- | ----- | -------- | ----------- | ----------- | -------"
+
+    compare_sort str_12,              `options' fsort
+    compare_sort str_12 str_32,       `options' fsort
+    compare_sort str_12 str_32 str_4, `options' fsort
+
+    compare_sort double1,                 `options' fsort
+    compare_sort double1 double2,         `options' fsort
+    compare_sort double1 double2 double3, `options' fsort
+
+    compare_sort int1,           `options' fsort
+    compare_sort int1 int2,      `options' fsort
+    compare_sort int1 int2 int3, `options' fsort
+
+    compare_sort int1 str_32 double1,                                        `options'
+    compare_sort int1 str_32 double1 int2 str_12 double2,                    `options'
+    compare_sort int1 str_32 double1 int2 str_12 double2 int3 str_4 double3, `options'
+
+    * cap gen_data, n(100)
+    * qui expand 10000
+    * compare_sort int1 str_32 double1 int2 str_12 double2 int3 str_4 double3, `options'
+    * compare_gsort int1 -str_32 double1 -int2 str_12 -double2 int3 -str_4 double3, `options'
+
+    di _n(1) "{hline 80}" _n(1) "compare_hashsort, `options'" _n(1) "{hline 80}" _n(1)
+end
+
+capture program drop gen_data
+program gen_data
+    syntax, [n(int 100)]
+    clear
+    set obs `n'
+    qui ralpha str_long,  l(5)
+    qui ralpha str_mid,   l(3)
+    qui ralpha str_short, l(1)
+    gen str32 str_32   = str_long + "this is some string padding"
+    gen str12 str_12   = str_mid  + "padding" + str_short + str_short
+    gen str4  str_4    = str_mid  + str_short
+
+    gen long int1  = floor(rnormal())
+    gen long int2  = floor(uniform() * 1000)
+    gen long int3  = floor(rnormal() * 5 + 10)
+
+    gen double double1 = rnormal()
+    gen double double2 = uniform() * 1000
+    gen double double3 = rnormal() * 5 + 10
+end
+
+capture program drop compare_sort
+program compare_sort, rclass
+    syntax varlist, [fsort *]
+
+    timer clear
+    preserve
+        timer on 42
+        sort `varlist' , stable
+        timer off 42
+        tempfile file_sort
+        qui save `file_sort'
+    restore
+    qui timer list
+    local time_sort = r(t42)
+
+    timer clear
+    preserve
+        timer on 43
+        qui hashsort `varlist', `options'
+        timer off 43
+        cf * using `file_sort'
+    restore
+    qui timer list
+    local time_hashsort = r(t43) 
+
+    if ( "`fsort'" == "fsort" ) {
+        timer clear
+        preserve
+            timer on 44
+            qui fsort `varlist'
+            timer off 44
+            cf * using `file_sort'
+        restore
+        qui timer list
+        local time_fsort = r(t44)
+    }
+    else {
+        local time_fsort = .
+    }
+
+    local rs = `time_sort'  / `time_hashsort'
+    local rf = `time_fsort' / `time_hashsort'
+    di "    `:di %5.3g `time_sort'' | `:di %5.3g `time_fsort'' | `:di %8.3g `time_hashsort'' | `:di %11.3g `rs'' | `:di %11.3g `rf'' | `varlist'"
+end
+
+capture program drop compare_gsort
+program compare_gsort, rclass
+    syntax anything, [*]
+    tempvar ix
+    gen long `ix' = _n
+
+    timer clear
+    preserve
+        timer on 42
+        gsort `anything'
+        timer off 42
+        tempfile file_sort
+        qui save `file_sort'
+    restore
+    qui timer list
+    local time_sort = r(t42)
+
+    timer clear
+    preserve
+        timer on 43
+        qui hashsort `anything', `options'
+        timer off 43
+        cf `:di subinstr("`anything'", "-", "", .)' using `file_sort'
+    restore
+    qui timer list
+    local time_hashsort = r(t43) 
+
+    local rs = `time_sort'  / `time_hashsort'
+    di "    `:di %5.3g `time_sort'' | `:di %8.3g `time_hashsort'' | `:di %11.3g `rs'' | `anything'"
+end
 capture program drop checks_levelsof
 program checks_levelsof
     syntax, [tol(real 1e-6) NOIsily *]
-    di _n(1) "{hline 80}" _n(1) "consistency_levelsof, `options'" _n(1) "{hline 80}" _n(1)
+    di _n(1) "{hline 80}" _n(1) "checks_levelsof, `options'" _n(1) "{hline 80}" _n(1)
 
     qui `noisily' sim, n(5000) nj(100) njsub(4) string groupmiss outmiss
     gen ix = _n
@@ -1243,9 +1739,9 @@ end
 capture program drop compare_levelsof
 program compare_levelsof
     syntax, [tol(real 1e-6) NOIsily *]
-    di _n(1) "{hline 80}" _n(1) "consistency_levelsof, `options'" _n(1) "{hline 80}" _n(1)
+    di _n(1) "{hline 80}" _n(1) "compare_levelsof, `options'" _n(1) "{hline 80}" _n(1)
 
-    qui `noisily' sim, n(500000) nj(10000) njsub(4) string groupmiss outmiss
+    qui `noisily' sim, n(500000) nj(10) njsub(4) string groupmiss outmiss
     gen ix = _n
 
     foreach i in 0 3 6 9 {
@@ -1362,6 +1858,109 @@ program compare_levelsof
         }
     }
 end
+
+***********************************************************************
+*                             Benchmarks                              *
+***********************************************************************
+
+capture program drop bench_levelsof
+program bench_levelsof
+    syntax, [tol(real 1e-6) bench(int 1) NOIsily *]
+
+    cap gen_data, n(100) expand(`=10000 * `bench'')
+    qui gen rsort = rnormal()
+    qui sort rsort
+
+    local N = trim("`: di %15.0gc _N'")
+
+    di _n(1)
+    di "Benchmark vs levelsof, obs = `N', J = 100 (in seconds)"
+    di "    levelsof | flevelsof | glevelsof | ratio (i/g) | ratio (f/g) | varlist"
+    di "    -------- | --------- | --------- | ----------- | ----------- | -------"
+
+    versus_levelsof str_12, `options' flevelsof
+    versus_levelsof str_32, `options' flevelsof
+    versus_levelsof str_4,  `options' flevelsof
+
+    versus_levelsof double1, `options' flevelsof
+    versus_levelsof double2, `options' flevelsof
+    versus_levelsof double3, `options' flevelsof
+
+    versus_levelsof int1, `options' flevelsof
+    versus_levelsof int2, `options' flevelsof
+    versus_levelsof int3, `options' flevelsof
+
+    di _n(1) "{hline 80}" _n(1) "bench_levelsof, `options'" _n(1) "{hline 80}" _n(1)
+end
+
+capture program drop gen_data
+program gen_data
+    syntax, [n(int 100) expand(int 1)]
+    clear
+    set obs `n'
+    qui ralpha str_long,  l(5)
+    qui ralpha str_mid,   l(3)
+    qui ralpha str_short, l(1)
+    gen str32 str_32   = str_long + "this is some string padding"
+    gen str12 str_12   = str_mid  + "padding" + str_short + str_short
+    gen str4  str_4    = str_mid  + str_short
+
+    gen long int1  = floor(rnormal())
+    gen long int2  = floor(uniform() * 1000)
+    gen long int3  = floor(rnormal() * 5 + 10)
+
+    gen double double1 = rnormal()
+    gen double double2 = uniform() * 1000
+    gen double double3 = rnormal() * 5 + 10
+
+    qui expand `expand'
+end
+
+capture program drop versus_levelsof
+program versus_levelsof, rclass
+    syntax varlist, [flevelsof unique *]
+    if ( "`unique'" == "unique" ) {
+        tempvar ix
+        gen `ix' = `=_N' - _n
+        if ( strpos("`varlist'", "str") ) qui tostring `ix', replace
+    }
+
+    preserve
+        timer clear
+        timer on 42
+        qui levelsof `varlist' `ix'
+        timer off 42
+        qui timer list
+        local time_levelsof = r(t42)
+    restore
+
+    preserve
+        timer clear
+        timer on 43
+        qui glevelsof `varlist' `ix', `options'
+        timer off 43
+        qui timer list
+        local time_glevelsof = r(t43) 
+    restore
+
+    if ( "`flevelsof'" == "flevelsof" ) {
+    preserve
+        timer clear
+        timer on 44
+        qui flevelsof `varlist' `ix'
+        timer off 44
+        qui timer list
+        local time_flevelsof = r(t44)
+    restore
+    }
+    else {
+        local time_flevelsof = .
+    }
+
+    local rs = `time_levelsof'  / `time_glevelsof'
+    local rf = `time_flevelsof' / `time_glevelsof'
+    di "    `:di %8.3g `time_levelsof'' | `:di %9.3g `time_flevelsof'' | `:di %9.3g `time_glevelsof'' | `:di %11.3g `rs'' | `:di %11.3g `rf'' | `varlist'"
+end
 ***********************************************************************
 *                           Data simulation                           *
 ***********************************************************************
@@ -1416,7 +2015,7 @@ end
 
 capture program drop bench_ftools
 program bench_ftools
-    syntax anything, by(str) [kvars(int 5) stats(str) kmin(int 4) kmax(int 7) *]
+    syntax anything, by(str) [kvars(int 5) stats(str) kmin(int 4) kmax(int 7) legacy *]
     if ("`stats'" == "") local stats sum
 
     local collapse ""
@@ -1444,7 +2043,7 @@ program bench_ftools
             timer clear
             timer on `i'
             mata: printf(" gcollapse ")
-                qui gcollapse `collapse', by(`by')
+                gcollapse `collapse', by(`by') fast `legacy'
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -1454,7 +2053,7 @@ program bench_ftools
             timer clear
             timer on `i'
             mata: printf(" collapse ")
-                qui collapse `collapse', by(`by')
+                qui collapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -1464,7 +2063,7 @@ program bench_ftools
             timer clear
             timer on `i'
             mata: printf(" fcollapse ")
-                qui fcollapse `collapse', by(`by')
+                qui fcollapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -1493,7 +2092,7 @@ end
 
 capture program drop bench_sample_size
 program bench_sample_size
-    syntax anything, by(str) [nj(int 10) pct(str) stats(str) kmin(int 4) kmax(int 7) *]
+    syntax anything, by(str) [nj(int 10) pct(str) stats(str) kmin(int 4) kmax(int 7) legacy *]
     * NOTE: sometimes, fcollapse can't do sd
     if ("`stats'" == "") local stats sum mean max min count percent first last firstnm lastnm
     local stats `stats' `pct'
@@ -1523,7 +2122,7 @@ program bench_sample_size
             timer clear
             timer on `i'
             mata: printf(" gcollapse ")
-                qui gcollapse `collapse', by(`by')
+                qui gcollapse `collapse', by(`by') fast `legacy'
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -1533,7 +2132,7 @@ program bench_sample_size
             timer clear
             timer on `i'
             mata: printf(" collapse ")
-                qui collapse `collapse', by(`by')
+                qui collapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -1543,7 +2142,7 @@ program bench_sample_size
             timer clear
             timer on `i'
             mata: printf(" fcollapse ")
-                qui fcollapse `collapse', by(`by')
+                qui fcollapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -1568,7 +2167,7 @@ end
 
 capture program drop bench_group_size
 program bench_group_size
-    syntax anything, by(str) [pct(str) stats(str) obsexp(int 6) kmin(int 1) kmax(int 6) *]
+    syntax anything, by(str) [pct(str) stats(str) obsexp(int 6) kmin(int 1) kmax(int 6) legacy *]
     * NOTE: fcollapse can't do sd, apparently
     if ("`stats'" == "") local stats sum mean max min count percent first last firstnm lastnm
     local stats `stats' `pct'
@@ -1599,7 +2198,7 @@ program bench_group_size
             timer clear
             timer on `i'
             mata: printf(" gcollapse ")
-                qui gcollapse `collapse', by(`by')
+                qui gcollapse `collapse', by(`by') fast `legacy'
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -1609,7 +2208,7 @@ program bench_group_size
             timer clear
             timer on `i'
             mata: printf(" collapse ")
-                qui collapse `collapse', by(`by')
+                qui collapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -1619,7 +2218,7 @@ program bench_group_size
             timer clear
             timer on `i'
             mata: printf(" fcollapse ")
-                qui fcollapse `collapse', by(`by')
+                qui fcollapse `collapse', by(`by') fast
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -1648,7 +2247,7 @@ end
 
 capture program drop bench_switch_fcoll
 program bench_switch_fcoll
-    syntax anything, style(str) [GCOLLapse(str) *]
+    syntax anything, style(str) [GCOLLapse(str) legacy *]
     if !inlist("`style'", "ftools", "gtools") {
         di as error "Don't know benchmark style '`style''; available: ftools, gtools"
         exit 198
@@ -1730,7 +2329,7 @@ program bench_switch_fcoll
             timer clear
             timer on `i'
             mata: printf(" gcollapse-default `options'")
-                qui gcollapse `collapse', by(`by') `options' fast
+                qui gcollapse `collapse', by(`by') `options' fast `legacy'
             timer off `i'
             qui timer list
             local r`i' = `r(t`i')'
@@ -1778,8 +2377,8 @@ end
 * bench_ftools y1 y2 y3 y4 y5 y6 y7 y8 y9 y10, by(x3) kmin(5) kmax(8) kvars(10) stats(mean median min max)
 * bench_sample_size x1 x2, by(groupstr) kmin(5) kmax(8) pct(median iqr p23 p77)
 * bench_group_size x1 x2,  by(groupstr) kmin(1) kmax(7) pct(median iqr p23 p77) obsexp(7)
-
 * ---------------------------------------------------------------------
 * Run the things
 
+* main, benchmark bench_extra
 main, checks test

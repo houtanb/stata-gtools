@@ -98,6 +98,8 @@ gtools_ssc = [
     "gcollapse.sthlp",
     "gegen.ado",
     "gegen.sthlp",
+    "hashsort.ado",
+    "hashsort.sthlp",
     "gisid.ado",
     "gisid.sthlp",
     "glevelsof.ado",
@@ -172,7 +174,7 @@ tmpupdate = path.join(tmpdir, ".update_gtools.do")
 if platform in ["linux", "linux2", "win32", "cygwin", "darwin"]:
     print("Trying to compile plugins for -gtools-")
     print("(note: this assumes you have already compiled SpookyHash)")
-    make_flags = args['make_flags'] if args['make_flags'] is not None else ""
+    make_flags = args['make_flags'][0] if args['make_flags'] is not None else ""
     rc = system("make {0}".format(make_flags))
     print("Success!" if rc == 0 else "Failed.")
     if args['windows']:
@@ -192,6 +194,7 @@ testfile = open(path.join("src", "test", "gtools_tests.do")).readlines()
 files    = [path.join("src", "test", "test_gcollapse.do"),
             path.join("src", "test", "test_gegen.do"),
             path.join("src", "test", "test_gisid.do"),
+            path.join("src", "test", "test_hashsort.do"),
             path.join("src", "test", "test_glevelsof.do"),
             path.join("src", "test", "bench_gcollapse.do")]
 
@@ -215,10 +218,12 @@ copy2(path.join("src", "stata.toc"), gdir)
 copy2(path.join("src", "ado", "gcollapse.ado"), gdir)
 copy2(path.join("src", "ado", "gegen.ado"), gdir)
 copy2(path.join("src", "ado", "gisid.ado"), gdir)
+copy2(path.join("src", "ado", "hashsort.ado"), gdir)
 copy2(path.join("src", "ado", "glevelsof.ado"), gdir)
 copy2(path.join("src", "ado", "gtools.ado"), gdir)
 copy2(path.join("doc", "gcollapse.sthlp"), gdir)
 copy2(path.join("doc", "gegen.sthlp"), gdir)
+copy2(path.join("doc", "hashsort.sthlp"), gdir)
 copy2(path.join("doc", "gisid.sthlp"), gdir)
 copy2(path.join("doc", "glevelsof.sthlp"), gdir)
 copy2(path.join("doc", "gtools.sthlp"), gdir)
