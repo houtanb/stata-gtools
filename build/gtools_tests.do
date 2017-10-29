@@ -3,9 +3,9 @@
 * Program: gtools_tests.do
 * Author:  Mauricio Caceres Bravo <mauricio.caceres.bravo@gmail.com>
 * Created: Tue May 16 07:23:02 EDT 2017
-* Updated: Wed Oct 25 20:33:17 EDT 2017
+* Updated: Sat Oct 28 19:12:26 EDT 2017
 * Purpose: Unit tests for gtools
-* Version: 0.8.1
+* Version: 0.8.4
 * Manual:  help gtools
 
 * Stata start-up options
@@ -31,19 +31,30 @@ if ( _rc ) ssc install unique
 * --------------------
 
 program main
-    syntax, [CAPture NOIsily legacy *]
+    syntax, [NOIsily *]
+
+    if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) {
+        local c_os_ macosx
+    }
+    else {
+        local c_os_: di lower("`c(os)'")
+    }
+    log using gtools_tests_`c_os_'.log, text replace name(gtools_tests)
 
     * Set up
     * ------
 
     local  progname tests
     local  start_time "$S_TIME $S_DATE"
-    di "Start: `start_time'"
+
+    di _n(1)
+    di "Start:   `start_time'"
+    di "Options: `options'"
 
     * Run the things
     * --------------
 
-    `capture' `noisily' {
+    cap noi {
         * qui do test_gcollapse.do
         * qui do test_gegen.do
         * qui do test_gisid.do
@@ -51,7 +62,9 @@ program main
         * qui do test_gunique.do
         * qui do test_hashsort.do
 
-        if ( `:list posof "checks" in options' ) {
+        if ( `:list posof "basic_checks" in options' ) {
+
+            di _n(1)
 
             unit_test, `noisily' test(checks_corners, `noisily' oncollision(error))
 
@@ -66,10 +79,13 @@ program main
             unit_test, `noisily' test(checks_levelsof,  `noisily' oncollision(error))
             unit_test, `noisily' test(checks_unique,    `noisily' oncollision(error))
             unit_test, `noisily' test(checks_hashsort,  `noisily' oncollision(error))
+        }
+
+        if ( `:list posof "comparisons" in options' ) {
 
             di ""
             di "-----------------------------------------------------------"
-            di "Consistency checks (vs collapse, egen) $S_TIME $S_DATE"
+            di "Consistency checks (v native commands) $S_TIME $S_DATE"
             di "-----------------------------------------------------------"
 
             compare_gcollapse, `noisily' oncollision(error)
@@ -93,6 +109,8 @@ program main
             bench_isid,     n(1000) bench(1) `noisily' oncollision(error)
             bench_levelsof, n(100)  bench(1) `noisily' oncollision(error)
             bench_unique,   n(1000) bench(1) `noisily' oncollision(error)
+            bench_unique,   n(1000) bench(1) `noisily' oncollision(error) distinct
+            * bench_unique,   n(1000) bench(1) `noisily' oncollision(error) distinct joint distunique
             bench_hashsort, n(1000) bench(1) `noisily' oncollision(error)
         }
 
@@ -109,12 +127,15 @@ program main
             bench_isid,     n(10000) bench(10)  `noisily' oncollision(error)
             bench_levelsof, n(100)   bench(100) `noisily' oncollision(error)
             bench_unique,   n(10000) bench(10)  `noisily' oncollision(error)
+            bench_unique,   n(10000) bench(10)  `noisily' oncollision(error) distinct
+            * bench_unique,   n(10000) bench(10)  `noisily' oncollision(error) distinct joint distunique
             bench_hashsort, n(10000) bench(10)  `noisily' oncollision(error)
         }
     }
     local rc = _rc
 
     exit_message, rc(`rc') progname(`progname') start_time(`start_time') `capture'
+    log close gtools_tests
     exit `rc'
 end
 
@@ -238,7 +259,7 @@ program gen_data
     * Generate does-what-it-says-on-the-tin variables
     * -----------------------------------------------
 
-    gen str32 str_32   = str_long + "this is some string padding"    
+    gen str32 str_32   = str_long + "this is some string padding"
     gen str12 str_12   = str_mid  + "padding" + str_short + str_short
     gen str4  str_4    = str_mid  + str_short
 
@@ -830,8 +851,8 @@ program bench_collapse
     versus_collapse,                         `options' `collapse' `fcollapse'
     versus_collapse str_12 str_32 str_4,     `options' `collapse' `fcollapse'
     versus_collapse double1 double2 double3, `options' `collapse' `fcollapse'
-    versus_collapse int1 int2 int3,          `options' `collapse' `fcollapse'
-    versus_collapse int1 str_32 double1,     `options' `collapse'
+    versus_collapse int1 int2,               `options' `collapse' `fcollapse'
+    versus_collapse int3 str_32 double1,     `options' `collapse'
 
     di _n(1) "{hline 80}" _n(1) "bench_collapse, `options'" _n(1) "{hline 80}" _n(1)
 end
@@ -1466,7 +1487,25 @@ end
 
 capture program drop bench_unique
 program bench_unique
-    syntax, [tol(real 1e-6) bench(int 1) n(int 1000) NOIsily *]
+    syntax, [tol(real 1e-6) bench(int 1) n(int 1000) NOIsily distinct joint distunique *]
+
+    if ( "`distinct'" != "" ) {
+        local dstr distinct
+        local dsep --------
+    }
+    else {
+        local dstr unique
+        local dsep ------
+    }
+
+    if ( "`joint'" != "" ) {
+        local dj   , joint;
+    }
+    else {
+        local dj   ,
+    }
+
+    local options `options' `distinct' `joint' `distunique'
 
     qui `noisily' gen_data, n(`n')
     qui expand `=100 * `bench''
@@ -1476,10 +1515,18 @@ program bench_unique
     local N = trim("`: di %15.0gc _N'")
     local J = trim("`: di %15.0gc `n''")
 
-    di as txt _n(1)
-    di as txt "Benchmark vs unique, obs = `N', all calls include an index to ensure uniqueness (in seconds)"
-    di as txt "     unique | funique | gunique | ratio (u/g) | ratio (f/g) | varlist"
-    di as txt "     ------ | ------- | ------- | ----------- | ----------- | -------"
+    if ( ("`distunique'" != "") & ("`joint'" != "") ) {
+        di as txt _n(1)
+        di as txt "Benchmark vs `dstr'`dj' obs = `N', all calls include a unique index (in seconds)"
+        di as txt "     `dstr' |    unique | g`dstr' | ratio (d/g) | ratio (u/g) | varlist"
+        di as txt "     `dsep' | -`dsep' | -`dsep' | ----------- | ----------- | -------"
+    }
+    else {
+        di as txt _n(1)
+        di as txt "Benchmark vs `dstr'`dj' obs = `N', all calls include a unique index (in seconds)"
+        di as txt "     `dstr' | f`dstr' | g`dstr' | ratio (d/g) | ratio (u/g) | varlist"
+        di as txt "     `dsep' | -`dsep' | -`dsep' | ----------- | ----------- | -------"
+    }
 
     versus_unique str_12,              `options' funique unique
     versus_unique str_12 str_32,       `options' funique unique
@@ -1497,10 +1544,18 @@ program bench_unique
     versus_unique int1 str_32 double1 int2 str_12 double2,                    unique `options'
     versus_unique int1 str_32 double1 int2 str_12 double2 int3 str_4 double3, unique `options'
 
-    di as txt _n(1)
-    di as txt "Benchmark vs unique, obs = `N', J = `J' (in seconds)"
-    di as txt "     unique | funique | gunique | ratio (i/g) | ratio (f/g) | varlist"
-    di as txt "     ------ | ------- | ------- | ----------- | ----------- | -------"
+    if ( ("`distunique'" != "") & ("`joint'" != "") ) {
+        di as txt _n(1)
+        di as txt "Benchmark vs `dstr'`dj' obs = `N', J = `J' (in seconds)"
+        di as txt "     `dstr' |    unique | g`dstr' | ratio (d/g) | ratio (u/g) | varlist"
+        di as txt "     `dsep' | -`dsep' | -`dsep' | ----------- | ----------- | -------"
+    }
+    else {
+        di as txt _n(1)
+        di as txt "Benchmark vs `dstr'`dj' obs = `N', J = `J' (in seconds)"
+        di as txt "     `dstr' | f`dstr' | g`dstr' | ratio (u/g) | ratio (f/g) | varlist"
+        di as txt "     `dsep' | -`dsep' | -`dsep' | ----------- | ----------- | -------"
+    }
 
     versus_unique str_12,              `options' funique
     versus_unique str_12 str_32,       `options' funique
@@ -1523,7 +1578,7 @@ end
 
 capture program drop versus_unique
 program versus_unique, rclass
-    syntax varlist, [funique unique *]
+    syntax varlist, [funique unique distinct joint distunique *]
     if ( "`unique'" == "unique" ) {
         tempvar ix
         gen `ix' = `=_N' - _n
@@ -1550,11 +1605,22 @@ program versus_unique, rclass
         local time_gunique = r(t43)
     restore
 
-    if ( "`funique'" == "funique" ) {
+    if ( ("`funique'" == "funique") & ("`distinct'" == "") ) {
     preserve
         timer clear
         timer on 44
         cap funique `varlist' `ix'
+        assert inlist(_rc, 0, 459)
+        timer off 44
+        qui timer list
+        local time_funique = r(t44)
+    restore
+    }
+    else if ( "`distunique'" != "" ) {
+    preserve
+        timer clear
+        timer on 44
+        cap unique `varlist' `ix'
         assert inlist(_rc, 0, 459)
         timer off 44
         qui timer list
@@ -1567,7 +1633,13 @@ program versus_unique, rclass
 
     local rs = `time_unique'  / `time_gunique'
     local rf = `time_funique' / `time_gunique'
+
+    if ( "`distinct'" == "" ) {
     di as txt "    `:di %7.3g `time_unique'' | `:di %7.3g `time_funique'' | `:di %7.3g `time_gunique'' | `:di %11.3g `rs'' | `:di %11.3g `rf'' | `varlist'"
+    }
+    else {
+    di as txt "    `:di %9.3g `time_unique'' | `:di %9.3g `time_funique'' | `:di %9.3g `time_gunique'' | `:di %11.3g `rs'' | `:di %11.3g `rf'' | `varlist'"
+    }
 end
 
 * Prototype of -unique-
@@ -2095,17 +2167,35 @@ program compare_inner_isid
     local rc_gisid = _rc
     check_rc `rc_isid' `rc_gisid' , by( `varlist')
 
+    * make sure sorted check gives same result
+    hashsort `varlist'
+    cap gisid `varlist', missok `options'
+    local rc_gisid = _rc
+    check_rc `rc_isid' `rc_gisid' , by([sorted] `varlist')
+
     cap isid `ix' `varlist', missok
     local rc_isid = _rc
     cap gisid `ix' `varlist', missok `options'
     local rc_gisid = _rc
     check_rc `rc_isid' `rc_gisid' , by( ix `varlist')
 
+    * make sure sorted check gives same result
+    hashsort `ix' `varlist'
+    cap gisid `ix' `varlist', missok `options'
+    local rc_gisid = _rc
+    check_rc `rc_isid' `rc_gisid' , by([sorted] ix `varlist')
+
     cap isid `rsort' `varlist', missok
     local rc_isid = _rc
     cap gisid `rsort' `varlist', missok `options'
     local rc_gisid = _rc
     check_rc `rc_isid' `rc_gisid' , by( rsort `varlist')
+
+    * make sure sorted check gives same result
+    hashsort `rsort' `varlist'
+    cap gisid `rsort' `varlist', missok `options'
+    local rc_gisid = _rc
+    check_rc `rc_isid' `rc_gisid' , by([sorted] rsort `varlist')
 
     * ---------------------------------------------------------------------
     * ---------------------------------------------------------------------
@@ -2456,6 +2546,12 @@ program compare_sort, rclass
         qui hashsort `varlist', `options'
         timer off 43
         cf * using `file_sort'
+
+        * Make sure already sorted check is OK
+        qui gen byte one = 1
+        qui hashsort one `varlist', `options'
+        qui drop one
+        cf * using `file_sort'
     restore
     qui timer list
     local time_hashsort = r(t43)
@@ -2514,4 +2610,4 @@ end
 * ---------------------------------------------------------------------
 * Run the things
 
-main, checks bench_test
+main, basic_checks comparisons bench_test

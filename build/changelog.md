@@ -1,19 +1,59 @@
 Change Log
 ==========
 
+## gtools-0.8.4 (2017-10-29)
+
+### Enhancements
+
+- Normalized types in the C base to ensure I have 64-bit integers
+  (signed and unsigned) as well as `ST_doubles` all around.
+- Bijection limit is now limit on signed 64-bit integers.
+
+## gtools-0.8.3 (2017-10-28)
+
+### Features
+
+- `gisid` includes an internal check to see if the data is sorted.
+  This means that if there are two duplicate rows in unsorted data
+  or if the data is already sorted, `gisid` will give a result much
+  faster. However, if the data is not sorted it will be marginally
+  slower as it will execute the rest of the code normally.
+
+### Backwards Incompatible
+
+- `gisid` and `hashsort` are no longer rclass. Both will exit early if
+  the data is already sorted, and `gisid` will also exit if it finds a
+  duplicate row during the sorted check. Hence they will not always
+  store results, making them inconsistent. It would be bad practice
+  to continue to have them store `rclass` results.
+
+### Enhancements
+
+- Cleaned up the C base somewhat. Improved modularity.
+- All `int` were changed to `size_t` or `int64_t` as applicable, since
+  `int` is not necessarily aliased to a 64-bit integer on all platforms.
+
+## gtools-0.8.2 (2017-10-26)
+
+### Features
+
+* `gdistinct` is a replacement for `distinct`.  It is functionally identical
+  to `gunique` except it mimics the output format of `distinct`.
+
 ## gtools-0.8.1 (2017-10-26)
 
-## Backwards Incompatible
+### Backwards Incompatible
 
 * `merge` now merges labels and formats by default
 
 ### Bug fixes
 
+* Fxied examples in README; fixed minor typos in README
 * `gegen` now handles the type of `pctile` correctly.
 
 ## gtools-0.8.0 (2017-10-19)
 
-## Features
+### Features
 
 * Refactored code base for somewhat faster runtime, but mainly for bug fixes
   and ease of maintenance.

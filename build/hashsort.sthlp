@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.2.1  26Oct2017}{...}
+{* *! version 0.2.4  29Oct2017}{...}
 {viewerdialog hashsort "dialog sort, message(-hashsort-)"}{...}
 {vieweralsosee "[D] hashsort" "mansection D hashsort"}{...}
 {vieweralsosee "" "--"}{...}
@@ -118,21 +118,6 @@ order of {cmd:id}{p_end}
 {pstd}List each patient's blood pressures in reverse-time order{p_end}
 {phang2}{cmd:. list id time bp}{p_end}
     {hline}
-
-
-{marker results}{...}
-{title:Stored results}
-
-{pstd}
-Unless the data was already sorted, {cmd:hashsort} stores the following in {cmd:r()}:
-
-{synoptset 20 tabbed}{...}
-{p2col 5 20 24 2: Scalars}{p_end}
-{synopt:{cmd:r(N)   }} number of non-missing observations {p_end}
-{synopt:{cmd:r(J)   }} number of groups {p_end}
-{synopt:{cmd:r(minJ)}} largest group size {p_end}
-{synopt:{cmd:r(maxJ)}} smallest group size {p_end}
-{p2colreset}{...}
 
 
 {marker author}{...}

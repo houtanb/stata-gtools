@@ -1,9 +1,13 @@
-*! version 0.1.1 26Oct2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.1.4 29Oct2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Encode varlist using Jenkin's 128-bit spookyhash via C plugins
 
 capture program drop _gtools_internal
 program _gtools_internal, rclass
     version 13
+
+    if ( inlist("${GTOOLS_FORCE_PARALLEL}", "17900") ) {
+        di as txt "(note: multi-threading is not available on this platform)"
+    }
 
     local GTOOLS_CALLER $GTOOLS_CALLER
     local GTOOLS_CALLERS gegen glevelsof gisid hashsort gunique gcollapse
@@ -14,7 +18,7 @@ program _gtools_internal, rclass
 
     if ( `=_N < 1' ) {
         di as err "no observations"
-        exit 42001
+        exit 17001
     }
 
     local 00 `0'
@@ -40,6 +44,7 @@ program _gtools_internal, rclass
                                   /// General options
                                   /// ---------------
                                   ///
+        seecount                  /// print group info to console
         COUNTonly                 /// report group info and exit
         MISSing                   /// Include missing values
         unsorted                  /// Do not sort hash values; faster
@@ -320,6 +325,7 @@ program _gtools_internal, rclass
     scalar __gtools_missing    = ( "`missing'"     != "" )
     scalar __gtools_unsorted   = ( "`unsorted'"    != "" )
     scalar __gtools_countonly  = ( "`countonly'"   != "" )
+    scalar __gtools_seecount   = ( "`seecount'"    != "" )
     scalar __gtools_nomiss     = ( "`exitmissing'" != "" )
     scalar __gtools_replace    = ( "`replace'"     != "" )
     scalar __gtools_countmiss  = ( "`countmiss'"   != "" )
@@ -737,11 +743,11 @@ program _gtools_internal, rclass
             exit `rc'
         }
 
-        if ( "`gen'" == "" ) {
+        if ( "`gen_name'" == "" ) {
             if ( !`invert' ) sort `byvars'
         }
         else {
-            sort `gen'
+            sort `gen_name'
         }
 
         local msg "Stata reshuffle"
@@ -892,6 +898,7 @@ program clean_all
     cap scalar drop __gtools_verbose
     cap scalar drop __gtools_benchmark
     cap scalar drop __gtools_countonly
+    cap scalar drop __gtools_seecount
     cap matrix drop __gtools_unsorted
     cap scalar drop __gtools_nomiss
     cap scalar drop __gtools_missing
@@ -1129,19 +1136,19 @@ program rc_dispatch
     local website_url  https://github.com/mcaceresb/stata-gtools/issues
     local website_disp github.com/mcaceresb/stata-gtools
 
-    if ( `rc' == 42000 ) {
+    if ( `rc' == 17000 ) {
         di as err "There may be 128-bit hash collisions!"
         di as err `"This is a bug. Please report to {browse "`website_url'":`website_disp'}"'
         if ( "`oncollision'" == "fallback" ) {
-            exit 41999
+            exit 17999
         }
         else {
-            exit 42000
+            exit 17000
         }
     }
-    else if ( `rc' == 42001 ) {
+    else if ( `rc' == 17001 ) {
         di as txt "(no observations)"
-        exit 42001
+        exit 17001
     }
     else if ( `rc' == 459 ) {
 		local kvars : word count `varlist'
@@ -1149,7 +1156,7 @@ program rc_dispatch
         di as err "variable`s' `varlist' should never be missing"
         exit 459
     }
-    else if ( `rc' == 42459 ) {
+    else if ( `rc' == 17459 ) {
 		local kvars : word count `varlist'
 		local var  = cond(`kvars'==1, "variable", "variables")
 		local does = cond(`kvars'==1, "does", "do")
@@ -1431,4 +1438,11 @@ if ( "`c_os_'" == "windows" ) {
 }
 
 cap program drop gtools_plugin
-program gtools_plugin, plugin using("gtools_`c_os_'.plugin")
+if ( inlist("${GTOOLS_FORCE_PARALLEL}", "1") ) {
+    cap program gtools_plugin, plugin using("gtools_`c_os_'_multi.plugin")
+    if ( _rc ) {
+        global GTOOLS_FORCE_PARALLEL 17900
+        program gtools_plugin, plugin using("gtools_`c_os_'.plugin")
+    }
+}
+else program gtools_plugin, plugin using("gtools_`c_os_'.plugin")

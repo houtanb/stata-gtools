@@ -1,8 +1,8 @@
-*! version 0.2.1 26Oct2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.2.4 29Oct2017 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! implementation of -sort- and -gsort- using C-plugins
 
 capture program drop hashsort
-program define hashsort, rclass
+program define hashsort
     version 13
 
     global GTOOLS_CALLER hashsort
@@ -41,7 +41,7 @@ program define hashsort, rclass
     global GTOOLS_CALLER ""
     local rc = _rc
 
-    if ( `rc' == 41999 ) {
+    if ( `rc' == 17999 ) {
         if regexm("`anything'", "[\+\-]") {
             gsort `anything', gen(`generate') mfirst
             exit 0
@@ -52,9 +52,4 @@ program define hashsort, rclass
         }
     }
     else if ( `rc' ) exit `rc'
-
-    cap return scalar N      = `r(N)'
-    cap return scalar J      = `r(J)'
-    cap return scalar minJ   = `r(minJ)'
-    cap return scalar maxJ   = `r(maxJ)'
 end
